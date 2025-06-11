@@ -88,7 +88,7 @@ export function ElementsPanel() {
           fontSize: '24px',
           fontWeight: '600',
           color: color === '#e5e7eb' ? '#1f2937' : color,
-          fontFamily: 'Inter, sans-serif',
+          fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
         };
       case 'rectangle':
         return {
@@ -142,6 +142,7 @@ export function ElementsPanel() {
           fontWeight: 'bold',
           color: selectedColor === '#e5e7eb' ? '#1f2937' : selectedColor,
           textAlign: 'center',
+          fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
         },
         size: { width: 400, height: 80 },
       },

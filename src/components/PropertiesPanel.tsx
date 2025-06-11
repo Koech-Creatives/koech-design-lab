@@ -410,6 +410,23 @@ export function PropertiesPanel() {
                 <option value="right">Right</option>
               </select>
             </div>
+
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Line Height</label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="range"
+                  min="100"
+                  max="200"
+                  value={Math.round((parseFloat(localStyle.lineHeight) || 1.5) * 100)}
+                  onChange={(e) => handleStyleUpdate({ lineHeight: (parseInt(e.target.value) / 100).toString() })}
+                  className="flex-1"
+                />
+                <span className="text-xs w-12 text-center text-gray-300">
+                  {((parseFloat(localStyle.lineHeight) || 1.5) * 100).toFixed(0)}%
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -137,7 +137,7 @@ export function LeftPanel({ platform, currentFormat }: LeftPanelProps) {
       </div>
       
       {/* Top Section - Layers & Properties */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         <div className="flex border-b" style={{ borderColor: '#004080' }}>
           {topTabs.map((tab) => {
             const Icon = tab.icon;
@@ -172,13 +172,13 @@ export function LeftPanel({ platform, currentFormat }: LeftPanelProps) {
           })}
         </div>
         
-        <div className="flex-1 overflow-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4">
           {renderTopPanel()}
         </div>
       </div>
 
       {/* Bottom Section - Pages & Brand */}
-      <div className="flex-1 flex flex-col border-t" style={{ borderColor: '#004080' }}>
+      <div className="flex flex-col border-t" style={{ borderColor: '#004080', height: '40%' }}>
         <div className="flex border-b" style={{ borderColor: '#004080' }}>
           {bottomTabs.map((tab) => {
             const Icon = tab.icon;
@@ -213,7 +213,7 @@ export function LeftPanel({ platform, currentFormat }: LeftPanelProps) {
           })}
         </div>
         
-        <div className="flex-1 overflow-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4">
           {renderBottomPanel()}
         </div>
       </div>
