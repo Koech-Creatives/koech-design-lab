@@ -1,0 +1,21 @@
+{
+  "name": "@koech-design-lab/api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --loader tsx render.ts",
+    "build": "tsc",
+    "start": "node dist/render.js"
+  },
+  "dependencies": {
+    "satori": "^0.15.2",
+    "@resvg/resvg-js": "^2.6.2",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+} 

@@ -1,0 +1,36 @@
+{
+  "name": "@koech-design-lab/canvas",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@directus/sdk": "^19.1.0",
+    "@monaco-editor/react": "^4.7.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "@supabase/supabase-js": "^2.50.0",
+    "@types/react-router-dom": "^5.3.3",
+    "caniuse-lite": "^1.0.30001721",
+    "html2canvas": "^1.4.1",
+    "lucide-react": "^0.344.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-live": "^4.1.8",
+    "react-router-dom": "^7.6.2",
+    "satori": "^0.15.2",
+    "satori-html": "^0.3.2",
+    "@koech-design-lab/shared-ui": "file:../../shared/ui",
+    "@koech-design-lab/shared-config": "file:../../shared/config"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.2"
+  }
+} 

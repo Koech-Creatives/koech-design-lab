@@ -1,174 +1,179 @@
-# n8n Webhook Setup for Feedback Collection
+# n8n Webhook Setup for Koech Design Lab Feedback System
 
-This guide explains how to set up an n8n webhook to receive feedback from your Koech Design Lab application.
+This document explains how to set up n8n webhooks to receive feedback from your Koech Design Lab application.
 
-## Quick Setup
+## Overview
 
-1. **Set your webhook URL** in `.env.local`:
-   ```
-   VITE_N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook/feedback
-   ```
+The app sends three types of feedback to n8n webhooks:
+- **Feature Requests** - User suggestions for new features
+- **Bug Reports** - Issues and problems users encounter
+- **General Feedback** - Overall thoughts and comments
 
-2. **Restart your development server** after updating the environment variable
+## Current Configuration
 
-## n8n Workflow Configuration
+Your app is configured to use: `https://n8n-service-u0dv.onrender.com/webhook/koech-labs-feedback`
 
-### 1. Create a Webhook Trigger
+## Webhook Payload Structure
 
-In your n8n workflow, add a **Webhook** trigger node with these settings:
-
-- **HTTP Method**: `POST`
-- **Path**: `/feedback` (or your preferred path)
-- **Authentication**: None (or configure as needed)
-- **Response Mode**: Respond When Last Node Finishes
-
-### 2. Expected Data Format
-
-Your webhook will receive JSON data in this format:
+Each feedback submission sends a JSON payload with this structure:
 
 ```json
 {
   "type": "feature|bug|general",
-  "message": "User's feedback text",
+  "message": "User's feedback message",
   "user": {
     "email": "user@example.com",
     "name": "John Doe",
     "id": "user-uuid"
   },
-  "timestamp": "2024-01-15T10:30:00.000Z",
-  "source": "koech-design-lab",
-  "version": "0.1.0-beta",
-  "platform": "localhost"
+  "timestamp": "2024-01-20T10:30:00.000Z",
+  "app_version": "0.1.0-beta",
+  "user_agent": "Mozilla/5.0...",
+  "url": "https://your-app.com/current-page"
 }
 ```
 
-### 3. Sample n8n Workflow Nodes
+## n8n Workflow Setup
 
-#### Option A: Send to Email
-1. **Webhook Trigger** → **Email Send**
-   - To: `support@koechcreatives.com`
-   - Subject: `[{{$json["type"].toUpperCase()}}] Feedback from {{$json["user"]["name"]}}`
-   - Body: Template with user details and feedback
+### 1. Create a New Workflow
 
-#### Option B: Save to Database
-1. **Webhook Trigger** → **Database Insert**
-   - Insert the feedback data into your database
-   - Optionally add auto-ID and processing status
+1. Open your n8n instance
+2. Create a new workflow
+3. Add a **Webhook** node as the trigger
 
-#### Option C: Slack/Discord Notification
-1. **Webhook Trigger** → **Slack/Discord**
-   - Send formatted message to your team channel
-   - Include user info and feedback type
+### 2. Configure the Webhook Node
 
-### 4. Sample Email Template
+- **HTTP Method**: POST
+- **Path**: `/webhook/koech-labs-feedback`
+- **Authentication**: None (or add if needed)
+- **Response Mode**: Respond Immediately
+- **Response Code**: 200
 
-```html
-<h2>New {{$json["type"].toUpperCase()}} from Koech Design Lab</h2>
+### 3. Add Processing Nodes
 
-<p><strong>From:</strong> {{$json["user"]["name"]}} ({{$json["user"]["email"]}})</p>
-<p><strong>Type:</strong> {{$json["type"].toUpperCase()}}</p>
-<p><strong>Date:</strong> {{$json["timestamp"]}}</p>
-<p><strong>Version:</strong> {{$json["version"]}}</p>
+Here's a suggested workflow structure:
 
-<h3>Message:</h3>
-<div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
-  {{$json["message"]}}
-</div>
+```
+Webhook → Switch → [Feature/Bug/General Processing] → [Notification/Storage]
+```
 
-<hr>
-<p><small>Sent from Koech Design Lab v{{$json["version"]}}</small></p>
+#### Switch Node Configuration:
+- **Mode**: Expression
+- **Expression**: `{{$json.type}}`
+- **Routing Rules**:
+  - `feature` → Feature processing branch
+  - `bug` → Bug processing branch  
+  - `general` → General processing branch
+
+### 4. Example Processing Branches
+
+#### For Feature Requests:
+```
+Switch → Set (Add Labels) → Slack/Email → Airtable/Notion
+```
+
+#### For Bug Reports:
+```
+Switch → Set (Priority) → GitHub Issues → Slack Alert
+```
+
+#### For General Feedback:
+```
+Switch → Set (Category) → Google Sheets → Email Summary
 ```
 
 ## Environment Variables
 
-Add to your `.env.local` file:
+Update your `.env.local` file with your actual webhook URLs:
 
 ```env
-# n8n Webhook Configuration
-VITE_N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook/feedback
+# Single webhook for all feedback types (recommended)
+VITE_N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook/koech-labs-feedback
+
+# Or separate webhooks for each type
+VITE_N8N_FEATURE_WEBHOOK=https://your-n8n-instance.com/webhook/feature-request
+VITE_N8N_BUG_WEBHOOK=https://your-n8n-instance.com/webhook/bug-report
+VITE_N8N_GENERAL_WEBHOOK=https://your-n8n-instance.com/webhook/general-feedback
 ```
 
-## Testing the Integration
+## Testing the Webhook
 
-1. **Start your app**: `npm run dev`
-2. **Open settings**: Click user menu → Settings
-3. **Submit feedback**: Fill out the form and submit
-4. **Check logs**: Look in browser console for webhook success/failure
-5. **Verify n8n**: Check your n8n workflow executions
+1. **Test from the app**: Use the Settings modal to submit feedback
+2. **Test manually**: Send a POST request to your webhook:
 
-## Troubleshooting
+```bash
+curl -X POST https://your-n8n-instance.com/webhook/koech-labs-feedback \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "feature",
+    "message": "Test feedback message",
+    "user": {
+      "email": "test@example.com",
+      "name": "Test User"
+    },
+    "timestamp": "2024-01-20T10:30:00.000Z",
+    "app_version": "0.1.0-beta"
+  }'
+```
 
-### Common Issues
+## Workflow Examples
 
-1. **CORS Error**: Configure your n8n instance to allow requests from your domain
-2. **Webhook Not Found**: Verify the webhook URL and path are correct
-3. **Authentication Error**: Check if your webhook requires authentication
+### Basic Slack Notification
 
-### Fallback Behavior
+```
+Webhook → Set → Slack
+```
 
-- If the webhook fails, feedback is automatically stored in `localStorage`
-- Users still see success message even if webhook fails
-- Check browser console for error details
-
-### Debug Information
-
-View all feedback (including failed webhooks) by:
-1. Opening browser console
-2. Going to Settings → "View All Feedback (Console)"
-3. Checking the logged feedback data
-
-## Example n8n Workflow JSON
-
+Set node adds:
 ```json
 {
-  "nodes": [
-    {
-      "name": "Webhook",
-      "type": "n8n-nodes-base.webhook",
-      "position": [250, 300],
-      "parameters": {
-        "path": "feedback",
-        "httpMethod": "POST"
-      }
-    },
-    {
-      "name": "Send Email",
-      "type": "n8n-nodes-base.emailSend",
-      "position": [450, 300],
-      "parameters": {
-        "toEmail": "support@koechcreatives.com",
-        "subject": "[{{$json[\"type\"].toUpperCase()}}] Feedback from {{$json[\"user\"][\"name\"]}}",
-        "text": "Type: {{$json[\"type\"]}}\nFrom: {{$json[\"user\"][\"name\"]}} ({{$json[\"user\"][\"email\"]}})\nMessage: {{$json[\"message\"]}}"
-      }
-    }
-  ],
-  "connections": {
-    "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Send Email",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  }
+  "channel": "#feedback",
+  "text": "New {{$json.type}} feedback from {{$json.user.email}}: {{$json.message}}"
 }
 ```
 
+### Advanced Processing
+
+```
+Webhook → Switch → Set → HTTP Request → Slack
+```
+
+This could:
+1. Route by feedback type
+2. Add metadata (priority, labels)
+3. Create tickets in external systems
+4. Send notifications
+
 ## Security Considerations
 
-1. **Rate Limiting**: Consider adding rate limiting to prevent spam
-2. **Validation**: Validate incoming data in your n8n workflow
-3. **Authentication**: Add webhook authentication for production use
-4. **Data Privacy**: Ensure compliance with data protection regulations
+1. **Authentication**: Add webhook authentication if needed
+2. **Rate Limiting**: Implement rate limiting to prevent spam
+3. **Validation**: Validate incoming payload structure
+4. **Logging**: Log all feedback for audit purposes
 
-## Production Deployment
+## Troubleshooting
 
-For production:
-1. Use environment-specific webhook URLs
-2. Set up monitoring for webhook failures
-3. Configure proper authentication
-4. Set up backup notification methods 
+### Common Issues:
+
+1. **CORS Errors**: Ensure your n8n instance allows requests from your app domain
+2. **Timeout**: Check if your n8n workflow completes within reasonable time
+3. **Payload Issues**: Verify the JSON structure matches expectations
+
+### Debug Mode:
+
+The app logs all webhook attempts to the browser console. Check for:
+- `📤 Sending feedback to n8n`
+- `✅ Feedback sent successfully`
+- `❌ Failed to send feedback`
+
+### Fallback Behavior:
+
+If the webhook fails, feedback is stored locally in `localStorage` with status `webhook_failed`. You can retrieve this data later for manual processing.
+
+## Next Steps
+
+1. Set up your n8n workflow using the structure above
+2. Update the webhook URL in your environment variables
+3. Test the integration
+4. Set up notifications and storage as needed
+5. Monitor feedback volume and adjust processing accordingly 
