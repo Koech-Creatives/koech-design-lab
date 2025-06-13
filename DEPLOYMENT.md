@@ -121,7 +121,16 @@ node --version  # Should be 18+
 # Clear cache and reinstall
 rm -rf node_modules package-lock.json
 npm install
+
+# If "vite: not found" error occurs:
+# Ensure Vite is in dependencies (not devDependencies) in package.json
 ```
+
+#### "vite: not found" Error
+This happens when Vite is in devDependencies instead of dependencies:
+- Move `vite`, `@vitejs/plugin-react`, and build tools to `dependencies`
+- Run `npm install` and `npm run build` to test locally
+- Commit and redeploy
 
 #### Environment Variables Not Working
 - Ensure variables start with `VITE_`
