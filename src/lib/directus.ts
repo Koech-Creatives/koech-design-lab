@@ -53,7 +53,7 @@ interface Schema {
 }
 
 // Create Directus client
-const directusUrl = 'https://koech-labs.onrender.com';
+const directusUrl = import.meta.env.VITE_DIRECTUS_URL || 'https://koech-labs.onrender.com';
 
 // Enhanced error logging utility
 const logError = (operation: string, error: any, context?: any) => {
@@ -69,15 +69,21 @@ const logError = (operation: string, error: any, context?: any) => {
       method: error?.config?.method || error?.method
     },
     context,
-    stack: error?.stack
+    stack: import.meta.env.DEV ? error?.stack : undefined // Only include stack in development
   };
   
-  console.group(`🔴 Directus Error: ${operation}`);
-  console.error('Error Details:', errorInfo);
-  console.error('Raw Error:', error);
-  console.groupEnd();
+  // Only show detailed logs in development
+  if (import.meta.env.DEV) {
+    console.group(`🔴 Directus Error: ${operation}`);
+    console.error('Error Details:', errorInfo);
+    console.error('Raw Error:', error);
+    console.groupEnd();
+  } else {
+    // In production, just log the basic error
+    console.error(`Directus Error (${operation}):`, error?.message || 'Unknown error');
+  }
   
-  // Also log to localStorage for debugging
+  // Store error logs for debugging (limit to prevent memory issues)
   try {
     const existingLogs = JSON.parse(localStorage.getItem('directus_error_logs') || '[]');
     existingLogs.push(errorInfo);
@@ -87,10 +93,13 @@ const logError = (operation: string, error: any, context?: any) => {
     }
     localStorage.setItem('directus_error_logs', JSON.stringify(existingLogs));
   } catch (e) {
-    console.warn('Failed to store error log:', e);
+    // Ignore localStorage errors in production
+    if (import.meta.env.DEV) {
+      console.warn('Failed to store error log:', e);
+    }
   }
 
-  // Send to dev server for terminal output in development
+  // Send to dev server for terminal output in development only
   if (typeof window !== 'undefined' && import.meta.env.DEV) {
     fetch('/__debug', {
       method: 'POST',
@@ -104,13 +113,17 @@ const logError = (operation: string, error: any, context?: any) => {
 
 // Enhanced success logging
 const logSuccess = (operation: string, data?: any) => {
-  console.log(`✅ Directus Success: ${operation}`, data);
+  if (import.meta.env.DEV) {
+    console.log(`✅ Directus Success: ${operation}`, data);
+  }
 };
 
 // Test connection utility
 export const testConnection = async () => {
   try {
-    console.log('🔌 Testing Directus connection...');
+    if (import.meta.env.DEV) {
+      console.log('🔌 Testing Directus connection...');
+    }
     const response = await fetch(`${directusUrl}/server/info`);
     const data = await response.json();
     logSuccess('Connection Test', data);
@@ -129,7 +142,9 @@ export const directus = createDirectus<Schema>(directusUrl)
 export const auth = {
   login: async (email: string, password: string) => {
     try {
-      console.log('🔐 Attempting login for:', email);
+      if (import.meta.env.DEV) {
+        console.log('🔐 Attempting login for:', email);
+      }
       await directus.login(email, password);
       logSuccess('Login', { email });
       return { success: true };
@@ -141,7 +156,9 @@ export const auth = {
 
   register: async (email: string, password: string, firstName: string, lastName: string) => {
     try {
-      console.log('📝 Attempting registration for:', email);
+      if (import.meta.env.DEV) {
+        console.log('📝 Attempting registration for:', email);
+      }
 
       const res = await fetch(`${directusUrl}/auth/register`, {
         method: 'POST',
@@ -174,7 +191,9 @@ export const auth = {
 
   logout: async () => {
     try {
-      console.log('🚪 Logging out...');
+      if (import.meta.env.DEV) {
+        console.log('🚪 Logging out...');
+      }
       await directus.logout();
       logSuccess('Logout');
       return { success: true };
@@ -186,7 +205,9 @@ export const auth = {
 
   getCurrentUser: async () => {
     try {
-      console.log('👤 Getting current user...');
+      if (import.meta.env.DEV) {
+        console.log('👤 Getting current user...');
+      }
       const user = await directus.request({
         method: 'GET',
         path: '/users/me'
@@ -201,7 +222,9 @@ export const auth = {
 
   isAuthenticated: () => {
     const token = localStorage.getItem('directus_token');
-    console.log('🔍 Checking authentication status:', !!token);
+    if (import.meta.env.DEV) {
+      console.log('🔍 Checking authentication status:', !!token);
+    }
     return !!token;
   }
 };
@@ -210,7 +233,9 @@ export const auth = {
 export const brandAPI = {
   create: async (brandData: Omit<Brand, 'id' | 'date_created' | 'date_updated'>) => {
     try {
-      console.log('🎨 Creating brand:', brandData.name);
+      if (import.meta.env.DEV) {
+        console.log('🎨 Creating brand:', brandData.name);
+      }
       const brand = await directus.request({
         method: 'POST',
         path: '/items/brands',
@@ -226,7 +251,9 @@ export const brandAPI = {
 
   update: async (id: string, updates: Partial<Brand>) => {
     try {
-      console.log('🎨 Updating brand:', id);
+      if (import.meta.env.DEV) {
+        console.log('🎨 Updating brand:', id);
+      }
       const brand = await directus.request({
         method: 'PATCH',
         path: `/items/brands/${id}`,
@@ -242,7 +269,9 @@ export const brandAPI = {
 
   getByUser: async (userId: string) => {
     try {
-      console.log('🎨 Getting brands for user:', userId);
+      if (import.meta.env.DEV) {
+        console.log('🎨 Getting brands for user:', userId);
+      }
       const brands = await directus.request({
         method: 'GET',
         path: '/items/brands',
@@ -263,7 +292,9 @@ export const brandAPI = {
 export const projectAPI = {
   create: async (projectData: Omit<Project, 'id' | 'date_created' | 'date_updated'>) => {
     try {
-      console.log('📁 Creating project:', projectData.name);
+      if (import.meta.env.DEV) {
+        console.log('📁 Creating project:', projectData.name);
+      }
       const project = await directus.request({
         method: 'POST',
         path: '/items/projects',
@@ -279,7 +310,9 @@ export const projectAPI = {
 
   update: async (id: string, updates: Partial<Project>) => {
     try {
-      console.log('📁 Updating project:', id);
+      if (import.meta.env.DEV) {
+        console.log('📁 Updating project:', id);
+      }
       const project = await directus.request({
         method: 'PATCH',
         path: `/items/projects/${id}`,
@@ -295,7 +328,9 @@ export const projectAPI = {
 
   getByUser: async (userId: string) => {
     try {
-      console.log('📁 Getting projects for user:', userId);
+      if (import.meta.env.DEV) {
+        console.log('📁 Getting projects for user:', userId);
+      }
       const projects = await directus.request({
         method: 'GET',
         path: '/items/projects',
@@ -313,7 +348,9 @@ export const projectAPI = {
 
   delete: async (id: string) => {
     try {
-      console.log('📁 Deleting project:', id);
+      if (import.meta.env.DEV) {
+        console.log('📁 Deleting project:', id);
+      }
       await directus.request({
         method: 'DELETE',
         path: `/items/projects/${id}`
@@ -341,19 +378,25 @@ export const debugUtils = {
   // Clear error logs
   clearErrorLogs: () => {
     localStorage.removeItem('directus_error_logs');
-    console.log('🧹 Error logs cleared');
+    if (import.meta.env.DEV) {
+      console.log('🧹 Error logs cleared');
+    }
   },
 
   // Test all API endpoints
   testAllEndpoints: async () => {
-    console.group('🧪 Testing All Endpoints');
+    if (import.meta.env.DEV) {
+      console.group('🧪 Testing All Endpoints');
+    }
     
     const results = {
       connection: await testConnection(),
       // Add more tests as needed
     };
     
-    console.groupEnd();
+    if (import.meta.env.DEV) {
+      console.groupEnd();
+    }
     return results;
   },
 
@@ -362,7 +405,9 @@ export const debugUtils = {
     try {
       const response = await fetch(`${directusUrl}/server/info`);
       const data = await response.json();
-      console.log('🖥️ Directus Server Info:', data);
+      if (import.meta.env.DEV) {
+        console.log('🖥️ Directus Server Info:', data);
+      }
       return data;
     } catch (error) {
       logError('Get Server Info', error);
@@ -371,18 +416,22 @@ export const debugUtils = {
   }
 };
 
-// Initialize connection test on load
+// Initialize connection test on load (development only)
 if (typeof window !== 'undefined') {
-  console.log('🚀 Directus client initialized');
-  console.log('📍 Directus URL:', directusUrl);
+  if (import.meta.env.DEV) {
+    console.log('🚀 Directus client initialized');
+    console.log('📍 Directus URL:', directusUrl);
+  }
   
-  // Commented out automatic connection test to reduce noise during development
+  // Only test connection in development to reduce production noise
   // Uncomment when Directus CORS is properly configured
-  // testConnection().then(result => {
-  //   if (!result.success) {
-  //     console.warn('⚠️ Initial connection test failed. Check your Directus setup.');
-  //   }
-  // });
+  // if (import.meta.env.DEV) {
+  //   testConnection().then(result => {
+  //     if (!result.success) {
+  //       console.warn('⚠️ Initial connection test failed. Check your Directus setup.');
+  //     }
+  //   });
+  // }
 }
 
 export default directus;

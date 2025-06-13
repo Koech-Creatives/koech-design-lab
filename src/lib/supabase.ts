@@ -8,10 +8,15 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 // Add defensive checks for missing environment variables
 if (!supabaseUrl || supabaseUrl === 'https://your-project-id.supabase.co') {
-  console.warn('⚠️ VITE_SUPABASE_URL not configured. Please add your Supabase URL to .env.local');
+  console.warn('⚠️ VITE_SUPABASE_URL not configured. Please add your Supabase URL to environment variables');
 }
 if (!supabaseKey || supabaseKey === 'your-anon-key-here') {
-  console.warn('⚠️ VITE_SUPABASE_ANON_KEY not configured. Please add your Supabase anonymous key to .env.local');
+  console.warn('⚠️ VITE_SUPABASE_ANON_KEY not configured. Please add your Supabase anonymous key to environment variables');
+}
+
+// Validate environment in production
+if (import.meta.env.PROD && (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder'))) {
+  console.error('🔴 Production build requires valid Supabase configuration');
 }
 
 export const supabase: SupabaseClient = createClient(
@@ -21,6 +26,7 @@ export const supabase: SupabaseClient = createClient(
 
 // -------- Logging helpers (similar to Directus) ------------
 const postDebug = (payload: any) => {
+  // Only send debug info in development
   if (typeof window !== 'undefined' && import.meta.env.DEV) {
     fetch('/__debug', {
       method: 'POST',
@@ -31,7 +37,9 @@ const postDebug = (payload: any) => {
 };
 
 const logSuccess = (operation: string, data?: any) => {
-  console.log(`✅ Supabase Success: ${operation}`, data);
+  if (import.meta.env.DEV) {
+    console.log(`✅ Supabase Success: ${operation}`, data);
+  }
   postDebug({ type: 'supabase', level: 'success', operation, data, timestamp: new Date().toISOString() });
 };
 
@@ -44,7 +52,11 @@ const logError = (operation: string, error: any, context?: any) => {
     error: error?.message || JSON.stringify(error),
     context
   };
-  console.error('🔴 Supabase Error:', info);
+  
+  if (import.meta.env.DEV) {
+    console.error('🔴 Supabase Error:', info);
+  }
+  
   postDebug(info);
   return info;
 };
