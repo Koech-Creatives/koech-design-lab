@@ -1,155 +1,61 @@
-import React, { useState } from 'react';
-import { TemplatePanel } from './TemplatePanel';
-import { ElementsPanel } from './ElementsPanel';
-import { ToolsPanel } from './ToolsPanel';
-import { ProjectsPanel } from './ProjectsPanel';
+import React from 'react';
 import { 
-  Layout, 
-  Type, 
-  MousePointer,
-  ChevronLeft,
-  ChevronRight,
-  Folder
+  Sparkles,
+  Download,
+  Palette,
+  Square,
+  Paintbrush,
+  Droplets,
+  Type,
+  List
 } from 'lucide-react';
 
 interface SidebarProps {
   selectedPlatform: string;
   selectedTemplate: any;
   onTemplateSelect: (template: any) => void;
+  activeItem: string;
+  onItemChange: (item: string) => void;
 }
 
-const tabs = [
-  { id: 'projects', name: 'Projects', icon: Folder },
-  { id: 'tools', name: 'Tools', icon: MousePointer },
-  { id: 'templates', name: 'Templates', icon: Layout },
-  { id: 'elements', name: 'Elements', icon: Type },
+const sidebarItems = [
+  { id: 'ai', name: 'AI', icon: Sparkles },
+  { id: 'import', name: 'Import', icon: Download },
+  { id: 'branding', name: 'Branding', icon: Palette },
+  { id: 'canvas', name: 'Canvas', icon: Square },
+  { id: 'design', name: 'Design', icon: Paintbrush },
+  { id: 'colors', name: 'Colors', icon: Droplets },
+  { id: 'text', name: 'Text', icon: Type },
+  { id: 'order', name: 'Order', icon: List },
 ];
 
-export function Sidebar({ selectedPlatform, selectedTemplate, onTemplateSelect }: SidebarProps) {
-  const [activeTab, setActiveTab] = useState('projects');
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
-  const renderPanel = () => {
-    switch (activeTab) {
-      case 'projects':
-        return <ProjectsPanel />;
-      case 'tools':
-        return <ToolsPanel />;
-      case 'templates':
-        return <TemplatePanel platform={selectedPlatform} onSelect={onTemplateSelect} />;
-      case 'elements':
-        return <ElementsPanel />;
-      default:
-        return null;
-    }
-  };
-
-  if (isCollapsed) {
-    return (
-      <div className="w-16 border-r flex flex-col" style={{ backgroundColor: '#002e51', borderColor: '#004080' }}>
-        <div className="flex flex-col space-y-2 p-2">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  setIsCollapsed(false);
-                }}
-                className={`p-3 rounded-lg transition-all duration-200 flex items-center justify-center ${
-                  activeTab === tab.id
-                    ? 'text-white'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-                style={activeTab === tab.id ? { backgroundColor: '#ff4940' } : { backgroundColor: 'transparent' }}
-                onMouseEnter={(e) => {
-                  if (activeTab !== tab.id) {
-                    e.currentTarget.style.backgroundColor = '#003a63';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (activeTab !== tab.id) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }
-                }}
-                title={tab.name}
-              >
-                <Icon className="w-5 h-5" />
-              </button>
-            );
-          })}
-        </div>
-        <div className="mt-auto p-2">
-          <button 
-            onClick={() => setIsCollapsed(false)}
-            className="p-3 rounded-lg text-gray-400 hover:text-white transition-colors w-full flex items-center justify-center"
-            style={{ backgroundColor: 'transparent' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#003a63';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-            title="Expand sidebar"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+export function Sidebar({ selectedPlatform, selectedTemplate, onTemplateSelect, activeItem, onItemChange }: SidebarProps) {
   return (
-    <div className="w-80 border-r flex flex-col" style={{ backgroundColor: '#002e51', borderColor: '#004080' }}>
-      <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: '#004080' }}>
-        <h2 className="text-lg font-semibold text-white">Design Tools</h2>
-        <button 
-          onClick={() => setIsCollapsed(true)}
-          className="p-1 rounded text-gray-400 hover:text-white transition-colors"
-          title="Collapse sidebar"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-      </div>
-      
-      <div className="flex border-b" style={{ borderColor: '#004080' }}>
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 p-3 text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${
-                activeTab === tab.id
-                  ? 'text-white border-b-2'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-              style={{
-                backgroundColor: activeTab === tab.id ? '#ff4940' : 'transparent',
-                borderBottomColor: activeTab === tab.id ? '#ff4940' : 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.backgroundColor = '#003a63';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }
-              }}
-            >
-              <Icon className="w-4 h-4" />
-              <span className="hidden lg:inline">{tab.name}</span>
-            </button>
-          );
-        })}
-      </div>
-      
-      <div className="flex-1 overflow-auto p-4">
-        {renderPanel()}
-      </div>
+    <div className="w-16 flex flex-col items-center py-4 space-y-2 bg-slate-800 border-r border-slate-700">
+      {sidebarItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = activeItem === item.id;
+        
+        return (
+          <button
+            key={item.id}
+            onClick={() => onItemChange(item.id)}
+            className={`w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-200 group relative ${
+              isActive
+                ? 'bg-blue-600 text-white shadow-lg'
+                : 'text-slate-400 hover:bg-slate-700 hover:text-white'
+            }`}
+            title={item.name}
+          >
+            <Icon className="w-5 h-5" />
+            
+            {/* Tooltip */}
+            <div className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+              {item.name}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
