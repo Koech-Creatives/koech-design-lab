@@ -45,7 +45,7 @@ export function PagesPanel({ platform, currentFormat }: PagesPanelProps) {
           <p className="text-xs text-gray-400">
             {platform === 'tiktok' 
               ? 'TikTok does not support carousels'
-              : `Carousel not supported for ${currentFormat.name} format`
+              : `Carousel not supported for ${currentFormat.name} format yet`
             }
           </p>
         </div>

@@ -27,7 +27,7 @@ export const templateLibrary = {
             fontWeight: 'bold', 
             color: '#1e293b',
             textAlign: 'center',
-            fontFamily: 'Inter, sans-serif'
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 2,
         },
@@ -42,7 +42,7 @@ export const templateLibrary = {
             fontWeight: '400', 
             color: '#64748b',
             textAlign: 'center',
-            fontFamily: 'Inter, sans-serif'
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 3,
         },
@@ -83,7 +83,8 @@ export const templateLibrary = {
             fontSize: '48px', 
             fontWeight: 'bold', 
             color: '#1f2937',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 3,
         },
@@ -97,7 +98,8 @@ export const templateLibrary = {
             fontSize: '24px', 
             fontWeight: '400', 
             color: '#6b7280',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 4,
         },
@@ -129,7 +131,8 @@ export const templateLibrary = {
             fontSize: '64px', 
             fontWeight: 'bold', 
             color: '#ffffff',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 2,
         },
@@ -170,7 +173,7 @@ export const templateLibrary = {
             fontWeight: 'bold', 
             color: '#1f2937',
             textAlign: 'center',
-            fontFamily: 'Inter, sans-serif'
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 3,
         },
@@ -185,7 +188,7 @@ export const templateLibrary = {
             fontWeight: '400', 
             color: '#6b7280',
             textAlign: 'center',
-            fontFamily: 'Inter, sans-serif'
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 4,
         },
@@ -211,7 +214,7 @@ export const templateLibrary = {
             fontWeight: '600', 
             color: '#ffffff',
             textAlign: 'center',
-            fontFamily: 'Inter, sans-serif'
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 6,
         }
@@ -245,7 +248,8 @@ export const templateLibrary = {
             fontSize: '48px', 
             fontWeight: 'bold', 
             color: '#ffffff',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 2,
         },
@@ -259,7 +263,8 @@ export const templateLibrary = {
             fontSize: '24px', 
             fontWeight: '400', 
             color: '#e5e7eb',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 3,
         },
@@ -291,7 +296,8 @@ export const templateLibrary = {
             fontSize: '36px', 
             fontWeight: 'bold', 
             color: '#0077b5',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 2,
         },
@@ -305,7 +311,8 @@ export const templateLibrary = {
             fontSize: '32px', 
             fontWeight: '600', 
             color: '#1f2937',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 3,
         },
@@ -339,7 +346,8 @@ export const templateLibrary = {
             fontSize: '56px', 
             fontWeight: 'bold', 
             color: '#ffffff',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 2,
         },
@@ -371,7 +379,8 @@ export const templateLibrary = {
             fontSize: '42px', 
             fontWeight: 'bold', 
             color: '#ffffff',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 2,
         },
@@ -405,7 +414,8 @@ export const templateLibrary = {
             fontSize: '64px', 
             fontWeight: 'bold', 
             color: '#ffffff',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 2,
         },
@@ -419,7 +429,8 @@ export const templateLibrary = {
             fontSize: '36px', 
             fontWeight: '600', 
             color: '#ffffff',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 3,
         },
@@ -451,7 +462,8 @@ export const templateLibrary = {
             fontSize: '56px', 
             fontWeight: 'bold', 
             color: '#000000',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 2,
         },
@@ -465,7 +477,8 @@ export const templateLibrary = {
             fontSize: '32px', 
             fontWeight: '500', 
             color: '#1f2937',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
           },
           zIndex: 3,
         },

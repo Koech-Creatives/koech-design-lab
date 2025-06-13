@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { TemplatePanel } from './TemplatePanel';
 import { ElementsPanel } from './ElementsPanel';
 import { ToolsPanel } from './ToolsPanel';
+import { ProjectsPanel } from './ProjectsPanel';
 import { 
   Layout, 
   Type, 
   MousePointer,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Folder
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -17,17 +19,20 @@ interface SidebarProps {
 }
 
 const tabs = [
+  { id: 'projects', name: 'Projects', icon: Folder },
   { id: 'tools', name: 'Tools', icon: MousePointer },
   { id: 'templates', name: 'Templates', icon: Layout },
   { id: 'elements', name: 'Elements', icon: Type },
 ];
 
 export function Sidebar({ selectedPlatform, selectedTemplate, onTemplateSelect }: SidebarProps) {
-  const [activeTab, setActiveTab] = useState('tools');
+  const [activeTab, setActiveTab] = useState('projects');
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const renderPanel = () => {
     switch (activeTab) {
+      case 'projects':
+        return <ProjectsPanel />;
       case 'tools':
         return <ToolsPanel />;
       case 'templates':

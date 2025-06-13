@@ -78,8 +78,9 @@ export function ToolsProvider({ children }: { children: React.ReactNode }) {
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      // Only trigger if no input/textarea is focused
-      if (document.activeElement?.tagName === 'INPUT' || 
+      // Skip shortcuts if user is editing text
+      if (document.activeElement?.getAttribute('contenteditable') === 'true' ||
+          document.activeElement?.tagName === 'INPUT' || 
           document.activeElement?.tagName === 'TEXTAREA') {
         return;
       }

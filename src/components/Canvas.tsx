@@ -81,6 +81,11 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
   // Handle zoom keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Skip shortcuts if user is editing text
+      if (document.activeElement?.getAttribute('contenteditable') === 'true') {
+        return;
+      }
+
       // Check for Cmd (Mac) or Ctrl (Windows/Linux)
       if (event.metaKey || event.ctrlKey) {
         switch (event.key) {
@@ -151,7 +156,7 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
                 fontSize: '24px',
                 fontWeight: '600',
                 color: '#1f2937',
-                fontFamily: 'Inter, sans-serif',
+                fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
               },
             });
           }

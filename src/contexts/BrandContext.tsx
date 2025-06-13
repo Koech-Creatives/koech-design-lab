@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { brandAPI } from '../lib/directus';
+import { useAuth } from './AuthContext';
 
 interface Color {
   name: string;
@@ -19,11 +21,14 @@ interface BrandAssets {
 
 interface BrandContextType {
   brandAssets: BrandAssets;
+  currentBrandId: string | null;
   addColor: (color: Color) => void;
   removeColor: (name: string) => void;
   addFont: (font: Font) => void;
   removeFont: (name: string) => void;
   setLogo: (url: string) => void;
+  saveBrandToDirectus: () => Promise<void>;
+  loadBrandFromDirectus: () => Promise<void>;
 }
 
 const BrandContext = createContext<BrandContextType | undefined>(undefined);
@@ -67,11 +72,20 @@ const saveBrandAssets = (assets: BrandAssets) => {
 
 export function BrandProvider({ children }: { children: React.ReactNode }) {
   const [brandAssets, setBrandAssets] = useState<BrandAssets>(loadBrandAssets);
+  const [currentBrandId, setCurrentBrandId] = useState<string | null>(null);
+  const { user, isAuthenticated } = useAuth();
 
   // Save to localStorage whenever brandAssets changes
   useEffect(() => {
     saveBrandAssets(brandAssets);
   }, [brandAssets]);
+
+  // Load brand data from Directus when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadBrandFromDirectus();
+    }
+  }, [isAuthenticated, user]);
 
   const addColor = (color: Color) => {
     setBrandAssets(prev => ({
@@ -108,14 +122,63 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const saveBrandToDirectus = async () => {
+    if (!user) return;
+
+    try {
+      const brandData = {
+        user_id: user.id,
+        name: 'Default Brand', // You can make this configurable
+        colors: brandAssets.colors,
+        fonts: brandAssets.fonts,
+        logo: brandAssets.logo
+      };
+
+      if (currentBrandId) {
+        // Update existing brand
+        await brandAPI.update(currentBrandId, brandData);
+      } else {
+        // Create new brand
+        const result = await brandAPI.create(brandData);
+        if (result.success && result.brand) {
+          setCurrentBrandId(result.brand.id);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save brand to Directus:', error);
+    }
+  };
+
+  const loadBrandFromDirectus = async () => {
+    if (!user) return;
+
+    try {
+      const result = await brandAPI.getByUser(user.id);
+      if (result.success && result.brands && result.brands.length > 0) {
+        const brand = result.brands[0]; // Use the first brand for now
+        setCurrentBrandId(brand.id);
+        setBrandAssets({
+          colors: brand.colors || [],
+          fonts: brand.fonts || defaultBrandAssets.fonts,
+          logo: brand.logo
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load brand from Directus:', error);
+    }
+  };
+
   return (
     <BrandContext.Provider value={{
       brandAssets,
+      currentBrandId,
       addColor,
       removeColor,
       addFont,
       removeFont,
       setLogo,
+      saveBrandToDirectus,
+      loadBrandFromDirectus,
     }}>
       {children}
     </BrandContext.Provider>

@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: koech-canvas
+    env: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: VITE_DIRECTUS_URL
+        value: https://koech-labs.onrender.com
+    healthCheckPath: /
+    autoDeploy: true
+    branch: main 

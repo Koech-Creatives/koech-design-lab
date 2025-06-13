@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import { Palette, Download, Save, Undo, Redo, Settings, Menu, X } from 'lucide-react';
+import { Palette, Download, Save, Undo, Redo, Settings, Menu, X, User, LogOut } from 'lucide-react';
 import { useCanvas } from '../contexts/CanvasContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useBrand } from '../contexts/BrandContext';
+import { useProject } from '../contexts/ProjectContext';
+import { SettingsModal } from './SettingsModal';
 
 interface HeaderProps {
   selectedPlatform: string;
@@ -19,9 +23,14 @@ export function Header({
   onPlatformChange
 }: HeaderProps) {
   const { elements, clearCanvas, undo, redo, canUndo, canRedo } = useCanvas();
+  const { user, logout } = useAuth();
+  const { saveBrandToDirectus } = useBrand();
+  const { saveProject } = useProject();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const designData = {
       platform: selectedPlatform,
       elements: elements,
@@ -29,6 +38,12 @@ export function Header({
     };
     
     localStorage.setItem('currentDesign', JSON.stringify(designData));
+    
+    // Save both brand and project data to Directus
+    await Promise.all([
+      saveBrandToDirectus(),
+      saveProject()
+    ]);
     
     // Create a temporary notification
     const notification = document.createElement('div');
@@ -39,6 +54,11 @@ export function Header({
     setTimeout(() => {
       document.body.removeChild(notification);
     }, 3000);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setUserMenuOpen(false);
   };
 
   const handleExport = () => {
@@ -73,7 +93,18 @@ export function Header({
             }}
           />
           <Palette className="w-8 h-8 hidden" style={{ color: '#ff4940' }} />
-          <h1 className="text-sm font-bold text-white opacity-60">by Koech Creatives</h1>
+          <div className="flex items-center space-x-2">
+            <h1 className="text-sm font-bold text-white opacity-60">by Koech Creatives</h1>
+            <span 
+              className="px-2 py-1 text-xs font-medium rounded-full"
+              style={{ 
+                backgroundColor: '#ff4940', 
+                color: 'white' 
+              }}
+            >
+              BETA
+            </span>
+          </div>
         </div>
         
         <div className="flex items-center space-x-2">
@@ -140,12 +171,55 @@ export function Header({
             <Download className="w-4 h-4" />
             <span>Export</span>
           </button>
+
+          {/* User Menu */}
+          <div className="relative">
+            <button
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="flex items-center space-x-2 px-3 py-2 rounded-lg text-white hover:opacity-80 transition-colors"
+              style={{ backgroundColor: '#003a63' }}
+            >
+              <User className="w-4 h-4" />
+              <span className="text-sm">{user?.first_name || 'User'}</span>
+            </button>
+
+            {userMenuOpen && (
+              <div 
+                className="absolute right-0 mt-2 w-48 rounded-lg shadow-lg border z-50"
+                style={{ backgroundColor: '#003a63', borderColor: '#004080' }}
+              >
+                <div className="p-3 border-b" style={{ borderColor: '#004080' }}>
+                  <p className="text-sm font-medium text-white">{user?.first_name} {user?.last_name}</p>
+                  <p className="text-xs text-gray-400">{user?.email}</p>
+                </div>
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      setSettingsModalOpen(true);
+                      setUserMenuOpen(false);
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm text-white hover:bg-gray-600 transition-colors flex items-center space-x-2"
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span>Settings</span>
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full px-3 py-2 text-left text-sm text-white hover:bg-red-600 transition-colors flex items-center space-x-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between px-4 py-3">
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2">
           <img 
             src="/logo.png" 
             alt="Logo" 
@@ -159,7 +233,16 @@ export function Header({
             }}
           />
           <Palette className="w-6 h-6 hidden" style={{ color: '#ff4940' }} />
-           </div>
+          <span 
+            className="px-2 py-0.5 text-xs font-medium rounded-full"
+            style={{ 
+              backgroundColor: '#ff4940', 
+              color: 'white' 
+            }}
+          >
+            BETA
+          </span>
+        </div>
         
         <div className="flex items-center space-x-2">
           <button 
@@ -240,6 +323,12 @@ export function Header({
           </div>
         </div>
       )}
+
+      {/* Settings Modal */}
+      <SettingsModal 
+        isOpen={settingsModalOpen} 
+        onClose={() => setSettingsModalOpen(false)} 
+      />
     </div>
   );
 }
