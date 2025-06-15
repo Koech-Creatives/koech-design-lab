@@ -18,14 +18,14 @@ interface CanvasProps {
 export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { elements, addElement, updateElement, selectElement, selectedElement, clearCanvas } = useCanvas();
+  const { elements, addElement, updateElement, selectElement, selectedElement, clearCanvas, removeElement, duplicateElement } = useCanvas();
   const { selectedTool, getToolCursor } = useTools();
   const { editorBackgroundColor, canvasBackgroundColor } = useBackground();
   const { currentPageId, updatePageElements, getCurrentPageElements } = usePages();
   
   const specs = PlatformSpecs[platform as keyof typeof PlatformSpecs] || PlatformSpecs.instagram;
   const [currentFormat, setCurrentFormat] = useState(specs.formats[0]);
-  const [showSafeZones, setShowSafeZones] = useState(true);
+  const [showSafeZones, setShowSafeZones] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(0.8);
   const [isPanning, setIsPanning] = useState(false);
@@ -142,40 +142,44 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
           // Hand tool doesn't add elements on click, just handles panning
           break;
         case 'text':
-          // Add text element at click position
+          // Add text element at center position by default
           const rect = canvasRef.current?.getBoundingClientRect();
           if (rect) {
-            const x = (e.clientX - rect.left) / zoomLevel;
-            const y = (e.clientY - rect.top) / zoomLevel;
+            // Center the element on the canvas
+            const centerX = (currentFormat.width - 200) / 2;
+            const centerY = (currentFormat.height - 40) / 2;
             addElement({
+              id: Date.now().toString(),
               type: 'text',
-              position: { x: Math.max(0, x - 50), y: Math.max(0, y - 12) },
-              size: { width: 200, height: 40 },
+              x: centerX,
+              y: centerY,
+              width: 200,
+              height: 40,
               content: 'Click to edit text',
-              style: {
-                fontSize: '24px',
-                fontWeight: '600',
-                color: '#1f2937',
-                fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
-              },
+              color: '#000000',
+              fontSize: 24,
+              fontWeight: '600',
+              fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
+              textAlign: 'center',
+              autoWrap: true,
             });
           }
           break;
         case 'line':
-          // Add line element at click position
+          // Add line element at center position by default
           const rectLine = canvasRef.current?.getBoundingClientRect();
           if (rectLine) {
-            const x = (e.clientX - rectLine.left) / zoomLevel;
-            const y = (e.clientY - rectLine.top) / zoomLevel;
+            // Center the element on the canvas
+            const centerX = (currentFormat.width - 100) / 2;
+            const centerY = (currentFormat.height - 2) / 2;
             addElement({
-              type: 'rectangle',
-              position: { x: Math.max(0, x - 50), y: Math.max(0, y - 1) },
-              size: { width: 100, height: 2 },
-              content: undefined,
-              style: {
-                backgroundColor: '#e5e7eb',
-                borderRadius: '1px',
-              },
+              id: Date.now().toString(),
+              type: 'line',
+              x: centerX,
+              y: centerY,
+              width: 100,
+              height: 2,
+              backgroundColor: '#e5e7eb',
             });
           }
           break;
@@ -197,19 +201,12 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
     if (isPanning && selectedTool === 'hand') {
       const deltaX = e.clientX - panStart.x;
       const deltaY = e.clientY - panStart.y;
-      setPanOffset(prev => ({
-        x: prev.x + deltaX,
-        y: prev.y + deltaY
-      }));
-      setPanStart({ x: e.clientX, y: e.clientY });
-      e.preventDefault();
+      setPanOffset({ x: deltaX, y: deltaY });
     }
   };
 
   const handleMouseUp = () => {
-    if (selectedTool === 'hand') {
-      setIsPanning(false);
-    }
+    setIsPanning(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -218,39 +215,73 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
     
     const elementType = e.dataTransfer.getData('elementType');
     const files = Array.from(e.dataTransfer.files);
-    const rect = canvasRef.current?.getBoundingClientRect();
     
-    if (rect) {
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
+    if (files.length > 0) {
       // Handle file drops
-      if (files.length > 0) {
-        files.forEach((file) => {
-          if (file.type.startsWith('image/')) {
-            const imageUrl = URL.createObjectURL(file);
-            const newElement = {
-              type: 'image',
-              position: { x: Math.max(0, x - 100), y: Math.max(0, y - 75) },
-              size: { width: 200, height: 150 },
-              content: imageUrl,
-              style: { borderRadius: '8px' },
-            };
-            addElement(newElement);
-          }
-        });
-        return;
-      }
-      
-      // Handle element type drops
-      if (elementType) {
+      files.forEach((file) => {
+        if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const rect = canvasRef.current?.getBoundingClientRect();
+            if (rect && event.target?.result) {
+              const x = (e.clientX - rect.left) / zoomLevel - 100;
+              const y = (e.clientY - rect.top) / zoomLevel - 75;
+              
+              addElement({
+                id: Date.now().toString(),
+                type: 'image',
+                x: Math.max(0, x),
+                y: Math.max(0, y),
+                width: 200,
+                height: 150,
+                src: event.target.result as string,
+                alt: file.name,
+              });
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    } else if (elementType) {
+      // Handle element drops from the elements panel
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        const x = (e.clientX - rect.left) / zoomLevel - 50;
+        const y = (e.clientY - rect.top) / zoomLevel - 50;
+        
         const newElement = {
+          id: Date.now().toString(),
           type: elementType,
-          position: { x: Math.max(0, x - 100), y: Math.max(0, y - 50) },
-          size: { width: 200, height: 100 },
-          content: getDefaultContent(elementType),
-          style: getDefaultStyle(elementType),
+          x: Math.max(0, x),
+          y: Math.max(0, y),
+          width: 100,
+          height: 100,
+          color: '#6366f1',
+          backgroundColor: '#6366f1',
         };
+        
+        // Adjust size based on element type
+        switch (elementType) {
+          case 'text':
+            newElement.width = 200;
+            newElement.height = 40;
+            newElement.content = 'Your text here';
+            newElement.fontSize = 18;
+            newElement.color = '#000000';
+            newElement.fontFamily = 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+            newElement.textAlign = 'center';
+            newElement.autoWrap = true;
+            break;
+          case 'image':
+            newElement.width = 200;
+            newElement.height = 150;
+            newElement.src = 'https://via.placeholder.com/200x150?text=Image';
+            break;
+          case 'line':
+            newElement.width = 150;
+            newElement.height = 3;
+            break;
+        }
         
         addElement(newElement);
       }
@@ -263,75 +294,46 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const getDefaultContent = (type: string): string | undefined => {
-    switch (type) {
-      case 'text': return 'Your text here';
-      case 'image': return undefined;
-      default: return undefined;
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
     }
   };
 
-  const getDefaultStyle = (type: string) => {
-    switch (type) {
-      case 'text':
-        return {
-          fontSize: '24px',
-          fontWeight: '600',
-          color: '#1f2937', // Dark grey text
-          fontFamily: 'Inter, sans-serif',
-        };
-      case 'rectangle':
-        return {
-          backgroundColor: '#e5e7eb', // Light grey
-          borderRadius: '8px',
-        };
-      case 'circle':
-        return {
-          backgroundColor: '#e5e7eb', // Light grey
-        };
-      default:
-        return {};
-    }
+  const handleElementDelete = (elementId: string) => {
+    removeElement(elementId);
+  };
+
+  const handleElementDuplicate = (elementId: string) => {
+    duplicateElement(elementId);
   };
 
   const exportCanvas = async () => {
     if (!canvasRef.current) return;
     
     try {
-      // Remove any selection UI before export
-      selectElement(null);
+      // Temporarily hide selection indicators and controls
+      const selectionElements = canvasRef.current.querySelectorAll('.ring-2, .absolute.bg-indigo-500, .absolute.-top-10');
+      selectionElements.forEach(el => {
+        (el as HTMLElement).style.display = 'none';
+      });
       
-      // Wait for state update to apply
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      // Use html2canvas to create an image
       const canvas = await html2canvas(canvasRef.current, {
-        scale: 2, // Higher quality
-        useCORS: true, // Allow cross-origin images
-        backgroundColor: null,
+        backgroundColor: canvasBackgroundColor,
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
         logging: false,
       });
       
-      // Convert to image and trigger download
-      const image = canvas.toDataURL('image/png', 1.0);
+      // Restore selection indicators
+      selectionElements.forEach(el => {
+        (el as HTMLElement).style.display = '';
+      });
+      
       const link = document.createElement('a');
-      link.download = `${specs.name}-${currentFormat.name}-${Date.now()}.png`;
-      link.href = image;
+      link.download = `${platform}-${currentFormat.name}-${Date.now()}.png`;
+      link.href = canvas.toDataURL();
       link.click();
-      
-      // Show notification
-      const notification = document.createElement('div');
-      notification.className = 'fixed top-20 right-6 bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-      notification.textContent = `Exporting ${currentFormat.name} format (${currentFormat.width}×${currentFormat.height}px) for ${specs.name}`;
-      document.body.appendChild(notification);
-      
-      setTimeout(() => {
-        document.body.removeChild(notification);
-      }, 3000);
     } catch (error) {
       console.error('Export failed:', error);
     }
@@ -339,53 +341,29 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
 
   const resetCanvas = () => {
     clearCanvas();
+    selectElement(null);
   };
 
   const handleFormatChange = (format: { name: string; width: number; height: number }) => {
-    // Get scale ratios for width and height
-    const widthRatio = format.width / currentFormat.width;
-    const heightRatio = format.height / currentFormat.height;
-    
-    // Scale and reposition all elements proportionally
-    const updatedElements = elements.map(element => {
-      const newPos = {
-        x: element.position.x * widthRatio,
-        y: element.position.y * heightRatio,
-      };
-      
-      const newSize = {
-        width: element.size.width * widthRatio,
-        height: element.size.height * heightRatio,
-      };
-      
-      return {
-        ...element,
-        position: newPos,
-        size: newSize,
-      };
-    });
-    
-    // Update all elements
-    updatedElements.forEach(el => {
-      updateElement(el.id, {
-        position: el.position,
-        size: el.size,
-      });
-    });
-    
-    // Set the new format
     setCurrentFormat(format);
-    
-    // Notify parent component
     if (onFormatChange) {
       onFormatChange(format);
     }
+    
+    // Reset zoom and pan when changing format
+    setZoomLevel(0.8);
+    setPanOffset({ x: 0, y: 0 });
+    
+    // Update canvas size after format change
+    setTimeout(() => {
+      updateCanvasSize();
+    }, 0);
   };
 
   const zoomIn = () => {
     setZoomLevel(prev => Math.min(prev + 0.1, 2));
   };
-  
+
   const zoomOut = () => {
     setZoomLevel(prev => Math.max(prev - 0.1, 0.3));
   };
@@ -559,6 +537,8 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
                   isSelected={selectedElement === element.id}
                   onSelect={() => selectElement(element.id)}
                   onUpdate={(updates) => updateElement(element.id, updates)}
+                  onDelete={() => handleElementDelete(element.id)}
+                  onDuplicate={() => handleElementDuplicate(element.id)}
                 />
               ))}
 

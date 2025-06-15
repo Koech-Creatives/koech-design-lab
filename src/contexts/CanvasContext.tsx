@@ -3,13 +3,34 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 interface CanvasElement {
   id: string;
   type: string;
-  position: { x: number; y: number };
-  size: { width: number; height: number };
+  x: number;
+  y: number;
+  width: number;
+  height: number;
   content?: string;
   style?: any;
   visible?: boolean;
   locked?: boolean;
   zIndex?: number;
+  // Text-specific properties
+  fontSize?: number;
+  fontWeight?: string;
+  fontFamily?: string;
+  textAlign?: string;
+  textTransform?: string;
+  textStyle?: string;
+  customStyle?: any;
+  autoWrap?: boolean;
+  color?: string;
+  backgroundColor?: string;
+  borderRadius?: number;
+  borderColor?: string;
+  // Other element properties
+  src?: string;
+  alt?: string;
+  ctaType?: string;
+  path?: string;
+  padding?: number;
 }
 
 interface HistoryState {
@@ -105,10 +126,8 @@ export function CanvasProvider({ children }: { children: React.ReactNode }) {
     if (element) {
       const duplicated = {
         ...element,
-        position: {
-          x: element.position.x + 20,
-          y: element.position.y + 20,
-        },
+        x: element.x + 20,
+        y: element.y + 20,
       };
       delete (duplicated as any).id;
       addElement(duplicated);

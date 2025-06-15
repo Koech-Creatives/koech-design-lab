@@ -1,44 +1,39 @@
 import React, { useState } from 'react';
-import { TemplatePanel } from './TemplatePanel';
 import { ElementsPanel } from './ElementsPanel';
 import { ToolsPanel } from './ToolsPanel';
-import { ProjectsPanel } from './ProjectsPanel';
+import { TextTab } from './TextTab';
+import { useCanvas } from '../contexts/CanvasContext';
 import { 
-  Layout, 
   Type, 
   MousePointer,
   ChevronLeft,
   ChevronRight,
-  Folder
+  Layers
 } from 'lucide-react';
 
 interface SidebarProps {
-  selectedPlatform: string;
-  selectedTemplate: any;
-  onTemplateSelect: (template: any) => void;
+  currentFormat: { width: number; height: number };
 }
 
 const tabs = [
-  { id: 'projects', name: 'Projects', icon: Folder },
   { id: 'tools', name: 'Tools', icon: MousePointer },
-  { id: 'templates', name: 'Templates', icon: Layout },
-  { id: 'elements', name: 'Elements', icon: Type },
+  { id: 'text', name: 'Text', icon: Type },
+  { id: 'elements', name: 'Elements', icon: Layers },
 ];
 
-export function Sidebar({ selectedPlatform, selectedTemplate, onTemplateSelect }: SidebarProps) {
-  const [activeTab, setActiveTab] = useState('projects');
+export function Sidebar({ currentFormat }: SidebarProps) {
+  const [activeTab, setActiveTab] = useState('tools');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { addElement } = useCanvas();
 
   const renderPanel = () => {
     switch (activeTab) {
-      case 'projects':
-        return <ProjectsPanel />;
       case 'tools':
         return <ToolsPanel />;
-      case 'templates':
-        return <TemplatePanel platform={selectedPlatform} onSelect={onTemplateSelect} />;
+      case 'text':
+        return <TextTab onAddElement={addElement} />;
       case 'elements':
-        return <ElementsPanel />;
+        return <ElementsPanel onAddElement={addElement} selectedColor="#6366f1" />;
       default:
         return null;
     }
@@ -147,7 +142,7 @@ export function Sidebar({ selectedPlatform, selectedTemplate, onTemplateSelect }
         })}
       </div>
       
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto">
         {renderPanel()}
       </div>
     </div>
