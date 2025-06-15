@@ -5,6 +5,8 @@ import { LeftPanel } from './components/LeftPanel';
 import { Header } from './components/Header';
 import { FloatingColorPalette } from './components/FloatingColorPalette';
 import { DebugPanel } from './components/DebugPanel';
+import { ProjectsModal } from './components/ProjectsModal';
+import { TemplatesModal } from './components/TemplatesModal';
 import { AuthProvider } from './contexts/AuthContext';
 import { BrandProvider } from './contexts/BrandContext';
 import { CanvasProvider } from './contexts/CanvasContext';
@@ -18,6 +20,8 @@ function App() {
   const [selectedPlatform, setSelectedPlatform] = useState('instagram');
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [currentFormat, setCurrentFormat] = useState({ name: 'Square 1080x1080', width: 1080, height: 1080 });
+  const [showProjectsModal, setShowProjectsModal] = useState(false);
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
 
   return (
     <AuthProvider>
@@ -32,12 +36,12 @@ function App() {
                       <Header 
                         selectedPlatform={selectedPlatform}
                         onPlatformChange={setSelectedPlatform}
+                        onOpenProjects={() => setShowProjectsModal(true)}
+                        onOpenTemplates={() => setShowTemplatesModal(true)}
                       />
                       <div className="flex flex-1 overflow-hidden">
                         <Sidebar 
-                          selectedPlatform={selectedPlatform}
-                          selectedTemplate={selectedTemplate}
-                          onTemplateSelect={setSelectedTemplate}
+                          currentFormat={currentFormat}
                         />
                         <main className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: '#1a1a1a' }}>
                           <Canvas 
@@ -54,6 +58,18 @@ function App() {
                       
                       {/* Debug Panel - Only in development */}
                       <DebugPanel />
+                      
+                      {/* Modal Windows */}
+                      <ProjectsModal 
+                        isOpen={showProjectsModal}
+                        onClose={() => setShowProjectsModal(false)}
+                      />
+                      <TemplatesModal 
+                        isOpen={showTemplatesModal}
+                        onClose={() => setShowTemplatesModal(false)}
+                        selectedPlatform={selectedPlatform}
+                        onTemplateSelect={setSelectedTemplate}
+                      />
                     </div>
                   </BackgroundProvider>
                 </ProjectProvider>

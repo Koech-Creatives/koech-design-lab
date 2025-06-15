@@ -1,310 +1,399 @@
 import React, { useState } from 'react';
-import { Type, Image, Square, Circle, Palette, FileImage } from 'lucide-react';
-import { useCanvas } from '../contexts/CanvasContext';
-import { useBrand } from '../contexts/BrandContext';
+import { 
+  Type, 
+  Image, 
+  Square, 
+  Sparkles,
+  Shapes as ShapesIcon,
+  Palette,
+  Plus,
+  Zap,
+  Heart,
+  Star,
+  Search,
+  MousePointer,
+  Smile,
+  Camera,
+  ArrowRight,
+  Share,
+  MessageCircle,
+  ExternalLink,
+  Send,
+  ChevronRight
+} from 'lucide-react';
+import { IconLibrary } from './IconLibrary';
+import { ShapesLibrary } from './ShapesLibrary';
 
-type ElementType = 'text' | 'image' | 'rectangle' | 'circle' | 'svg';
-type QuickElementType = 'headline' | 'logo' | 'cta';
+interface ElementsPanelProps {
+  onAddElement: (element: any) => void;
+  selectedColor: string;
+}
 
-const elements = [
-  { type: 'text' as ElementType, name: 'Text', icon: Type, content: 'Your text here' },
-  { type: 'image' as ElementType, name: 'Image', icon: Image, content: undefined },
-  { type: 'svg' as ElementType, name: 'SVG', icon: FileImage, content: undefined },
-  { type: 'rectangle' as ElementType, name: 'Rectangle', icon: Square, content: undefined },
-  { type: 'circle' as ElementType, name: 'Circle', icon: Circle, content: undefined },
+// Brand colors
+const brandColors = [
+  '#6366f1', // Indigo
+  '#8b5cf6', // Purple
+  '#ec4899', // Pink
+  '#f59e0b', // Amber
+  '#10b981', // Emerald
+  '#3b82f6', // Blue
+  '#ef4444', // Red
+  '#6b7280', // Gray
+  '#1f2937', // Dark Gray
+  '#000000', // Black
 ];
 
-export function ElementsPanel() {
-  const { addElement } = useCanvas();
-  const { brandAssets } = useBrand();
-  
-  // Neutral colors that are always available
-  const neutralColors = [
-    { name: 'Black', value: '#000000' },
-    { name: 'White', value: '#ffffff' },
-    { name: 'Grey', value: '#e5e7eb' },
-  ];
+// Quick add elements
+const quickElements = [
+  {
+    name: 'Headline',
+    icon: Type,
+    description: 'Add a title or heading',
+    action: 'text',
+    popular: true
+  },
+  {
+    name: 'Image',
+    icon: Image,
+    description: 'Upload or add an image',
+    action: 'image',
+    popular: true
+  },
+  {
+    name: 'Button',
+    icon: Square,
+    description: 'Interactive button element',
+    action: 'button',
+    popular: true
+  },
+  {
+    name: 'Text',
+    icon: Type,
+    description: 'Simple text element',
+    action: 'text',
+    popular: false
+  }
+];
 
-  // Combine brand colors and neutral colors, with brand colors first
-  const allColors = [
-    ...brandAssets.colors.map(color => ({ name: color.name, value: color.hex })),
-    ...neutralColors
-  ];
+// 3D Emojis
+const emojis3D = [
+  { emoji: '😀', name: 'Happy Face', category: 'emotions' },
+  { emoji: '😍', name: 'Heart Eyes', category: 'emotions' },
+  { emoji: '🤔', name: 'Thinking', category: 'emotions' },
+  { emoji: '😎', name: 'Cool', category: 'emotions' },
+  { emoji: '🥳', name: 'Party', category: 'emotions' },
+  { emoji: '😴', name: 'Sleeping', category: 'emotions' },
+  { emoji: '🔥', name: 'Fire', category: 'objects' },
+  { emoji: '💎', name: 'Diamond', category: 'objects' },
+  { emoji: '⭐', name: 'Star', category: 'objects' },
+  { emoji: '🎯', name: 'Target', category: 'objects' },
+  { emoji: '🚀', name: 'Rocket', category: 'objects' },
+  { emoji: '💡', name: 'Bulb', category: 'objects' },
+  { emoji: '🎨', name: 'Art', category: 'creative' },
+  { emoji: '🎵', name: 'Music', category: 'creative' },
+  { emoji: '📱', name: 'Phone', category: 'tech' },
+  { emoji: '💻', name: 'Laptop', category: 'tech' },
+  { emoji: '🌟', name: 'Glowing Star', category: 'objects' },
+  { emoji: '💰', name: 'Money', category: 'business' },
+  { emoji: '📈', name: 'Chart Up', category: 'business' },
+  { emoji: '🎁', name: 'Gift', category: 'objects' }
+];
 
-  const [selectedColor, setSelectedColor] = useState(allColors.length > 0 ? allColors[0].value : '#e5e7eb');
+// Stock Images Categories
+const stockImageCategories = [
+  { name: 'Business', icon: '💼', count: 150 },
+  { name: 'Technology', icon: '💻', count: 120 },
+  { name: 'People', icon: '👥', count: 200 },
+  { name: 'Nature', icon: '🌿', count: 180 },
+  { name: 'Abstract', icon: '🎨', count: 90 },
+  { name: 'Food', icon: '🍕', count: 75 },
+  { name: 'Travel', icon: '✈️', count: 110 },
+  { name: 'Lifestyle', icon: '🏠', count: 85 }
+];
 
-  const handleElementAdd = (elementType: any) => {
-    if (elementType.type === 'image' || elementType.type === 'svg') {
-      // Open file input dialog
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = elementType.type === 'svg' ? '.svg' : 'image/*';
-      input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-          const fileUrl = URL.createObjectURL(file);
-          const newElement = {
-            type: elementType.type,
-            position: { x: 50, y: 50 },
-            size: getDefaultSize(elementType.type),
-            content: fileUrl,
-            style: getDefaultStyle(elementType.type, selectedColor),
-            locked: false,
-          };
-          addElement(newElement);
-        }
-      };
-      input.click();
-      return;
-    }
-    
-    const newElement = {
-      type: elementType.type,
-      position: { x: 50, y: 50 },
-      size: getDefaultSize(elementType.type),
-      content: elementType.content || '',
-      style: getDefaultStyle(elementType.type, selectedColor),
-      locked: false,
+// CTA Elements
+const ctaElements = [
+  { name: 'Arrow Right', icon: ArrowRight, type: 'arrow-right', category: 'arrows' },
+  { name: 'Arrow Up', icon: '↗️', type: 'arrow-up', category: 'arrows' },
+  { name: 'Arrow Down', icon: '↘️', type: 'arrow-down', category: 'arrows' },
+  { name: 'Curved Arrow', icon: '↪️', type: 'arrow-curved', category: 'arrows' },
+  { name: 'Share', icon: Share, type: 'share', category: 'social' },
+  { name: 'Like', icon: Heart, type: 'like', category: 'social' },
+  { name: 'Comment', icon: MessageCircle, type: 'comment', category: 'social' },
+  { name: 'Visit Website', icon: ExternalLink, type: 'visit', category: 'actions' },
+  { name: 'DM', icon: Send, type: 'dm', category: 'actions' },
+  { name: 'Swipe', icon: ChevronRight, type: 'swipe', category: 'actions' },
+  { name: 'Tap Here', icon: MousePointer, type: 'tap', category: 'actions' },
+  { name: 'Click Me', icon: '👆', type: 'click', category: 'actions' }
+];
+
+export function ElementsPanel({ onAddElement, selectedColor }: ElementsPanelProps) {
+  const [showIconLibrary, setShowIconLibrary] = useState(false);
+  const [showShapesLibrary, setShowShapesLibrary] = useState(false);
+  const [show3DEmojis, setShow3DEmojis] = useState(false);
+  const [showStockImages, setShowStockImages] = useState(false);
+  const [showCTAElements, setShowCTAElements] = useState(false);
+  const [currentColor, setCurrentColor] = useState(selectedColor || brandColors[0]);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const handleQuickAdd = (elementType: string) => {
+    const baseElement = {
+      id: Date.now().toString(),
+      x: 400, // Center position
+      y: 300, 
+      width: 200,
+      height: 100,
+      color: currentColor,
+      backgroundColor: currentColor,
+      borderColor: currentColor,
     };
-    
-    addElement(newElement);
-  };
 
-  const getDefaultSize = (type: string) => {
-    switch (type) {
-      case 'text': return { width: 200, height: 50 };
-      case 'image': return { width: 200, height: 150 };
-      case 'svg': return { width: 150, height: 150 };
-      case 'rectangle': return { width: 150, height: 100 };
-      case 'circle': return { width: 100, height: 100 };
-      default: return { width: 100, height: 100 };
-    }
-  };
-
-  const getDefaultStyle = (type: string, color: string = '#e5e7eb') => {
-    switch (type) {
+    switch (elementType) {
       case 'text':
-        return {
-          fontSize: '24px',
-          fontWeight: '600',
-          color: color === '#e5e7eb' ? '#1f2937' : color,
-          fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
-        };
-      case 'rectangle':
-        return {
-          backgroundColor: color,
-          borderRadius: '8px',
-        };
-      case 'circle':
-        return {
-          backgroundColor: color,
-        };
-      default:
-        return {};
-    }
-  };
-
-  const handleDragStart = (e: React.DragEvent, element: any) => {
-    e.dataTransfer.setData('elementType', element.type);
-  };
-
-  const addQuickElement = (type: QuickElementType) => {
-    if (type === 'logo') {
-      // Open file input dialog for logo
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-          const imageUrl = URL.createObjectURL(file);
-          const newElement = {
-            type: 'image',
-            content: imageUrl,
-            style: { borderRadius: '8px' },
-            size: { width: 120, height: 120 },
-            position: { x: 100, y: 100 },
-            locked: false,
-          };
-          addElement(newElement);
-        }
-      };
-      input.click();
-      return;
-    }
-
-    const quickElements = {
-      headline: {
-        type: 'text',
-        content: 'Your Headline Here',
-        style: {
-          fontSize: '36px',
-          fontWeight: 'bold',
-          color: selectedColor === '#e5e7eb' ? '#1f2937' : selectedColor,
+        onAddElement({
+          ...baseElement,
+          type: 'text',
+          content: 'Your text here',
+          fontSize: 18,
+          fontWeight: 'normal',
           textAlign: 'center',
+          color: '#000000',
           fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
-        },
-        size: { width: 400, height: 80 },
-      },
-      cta: {
-        type: 'rectangle',
-        content: '', // Use empty string instead of null
-        style: {
-          backgroundColor: selectedColor,
-          borderRadius: '12px',
-        },
-        size: { width: 180, height: 50 },
-      },
+          autoWrap: true,
+          height: 40,
+        });
+        break;
+      case 'image':
+        onAddElement({
+          ...baseElement,
+          type: 'image',
+          src: 'https://placehold.co/600x400?text=Image+Here',
+          alt: 'Placeholder image',
+        });
+        break;
+      case 'button':
+        onAddElement({
+          ...baseElement,
+          type: 'button',
+          content: 'Click me',
+          fontSize: 16,
+          fontWeight: 'medium',
+          textAlign: 'center',
+          borderRadius: 8,
+          padding: 12,
+          height: 48,
+        });
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleIconSelect = (icon: any) => {
+    onAddElement({
+      id: Date.now().toString(),
+      type: 'icon',
+      x: 400,
+      y: 300,
+      width: 60,
+      height: 60,
+      color: currentColor,
+      content: icon.content,
+      name: icon.name,
+    });
+    setShowIconLibrary(false);
+  };
+
+  const handleShapeSelect = (shape: any) => {
+    const baseElement = {
+      id: Date.now().toString(),
+      x: 400,
+      y: 300,
+      width: 120,
+      height: 120,
+      color: currentColor,
+      backgroundColor: currentColor,
+      borderColor: currentColor,
     };
 
-    if (type === 'headline' || type === 'cta') {
-      const element = quickElements[type];
-      addElement({
-        ...element,
-        position: { x: 100, y: 100 },
-        locked: false,
-      });
-    }
+    onAddElement({
+      ...baseElement,
+      type: shape.type,
+      name: shape.name,
+      path: shape.path,
+    });
+    setShowShapesLibrary(false);
   };
-
-  const hasBrandColors = brandAssets.colors && brandAssets.colors.length > 0;
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-semibold text-white">Elements</h2>
-      
+    <div className="w-80 bg-gray-900 border-l border-gray-700 p-6 overflow-y-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-white mb-2">Elements</h2>
+        <p className="text-sm text-gray-400">Add elements to your design</p>
+      </div>
+
+      {/* Quick Add Section */}
+      <div className="mb-8">
+        <h3 className="text-sm font-medium text-white mb-4 flex items-center">
+          <Zap className="w-4 h-4 mr-2 text-yellow-400" />
+          Quick Add
+        </h3>
       <div className="grid grid-cols-2 gap-3">
-        {elements.map((element) => {
+          {quickElements.map((element) => {
           const Icon = element.icon;
           return (
-            <div
-              key={element.type}
-              draggable
-              onDragStart={(e) => handleDragStart(e, element)}
-              onClick={() => handleElementAdd(element)}
-              className="flex flex-col items-center space-y-2 p-4 bg-gray-800 hover:bg-gray-700 rounded-lg transition-all duration-200 cursor-pointer group transform hover:scale-105"
-            >
-              <Icon className="w-6 h-6 text-gray-400 group-hover:text-white transition-colors" />
-              <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
+              <button
+                key={element.name}
+                onClick={() => handleQuickAdd(element.action)}
+                className="relative p-4 bg-gray-800 rounded-lg border border-gray-600 hover:border-indigo-500 hover:bg-gray-700 transition-all duration-200 group text-left"
+                title={element.description}
+              >
+                {element.popular && (
+                  <div className="absolute top-2 right-2 w-2 h-2 bg-yellow-400 rounded-full"></div>
+                )}
+                <Icon className="w-6 h-6 text-indigo-400 mb-2" />
+                <div className="text-sm font-medium text-white group-hover:text-indigo-300">
                 {element.name}
-              </span>
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {element.description}
             </div>
+              </button>
           );
         })}
+        </div>
       </div>
       
-      {/* Color Selection */}
-      <div className="pt-4 border-t border-gray-700">
-        <h3 className="text-sm font-medium text-white flex items-center mb-3">
-          <Palette className="w-4 h-4 mr-2 text-indigo-400" />
-          Select Color
+      {/* Icons Library */}
+      <div className="mb-8">
+        <h3 className="text-sm font-medium text-white mb-4 flex items-center">
+          <Sparkles className="w-4 h-4 mr-2 text-purple-400" />
+          Icons Library
         </h3>
-
-        {/* Brand Colors Section */}
-        {hasBrandColors && (
-          <div className="mb-4">
-            <div className="text-xs text-gray-400 font-medium mb-2">Brand Colors</div>
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              {brandAssets.colors.map(color => (
-                <div key={color.hex} className="flex flex-col items-center">
                   <button
-                    onClick={() => setSelectedColor(color.hex)}
-                    className={`w-12 h-12 rounded-md transition-all ${
-                      selectedColor === color.hex 
-                        ? 'ring-2 scale-110' 
-                        : 'hover:scale-105'
-                    }`}
-                    style={{ 
-                      backgroundColor: color.hex,
-                      borderColor: selectedColor === color.hex ? '#ff4940' : 'transparent',
-                      borderWidth: selectedColor === color.hex ? '2px' : '0px'
-                    }}
-                    title={color.name}
-                  />
-                  <span className="text-xs text-gray-300 mt-1 truncate w-full text-center">{color.name}</span>
+          onClick={() => setShowIconLibrary(true)}
+          className="w-full p-6 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg border border-purple-500 hover:from-purple-500 hover:to-indigo-500 transition-all duration-200 group"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-3">
+              <Heart className="w-6 h-6 text-white" />
+              <Star className="w-5 h-5 text-yellow-300" />
+              <Sparkles className="w-4 h-4 text-pink-300" />
+            </div>
+            <span className="text-xs bg-white bg-opacity-20 text-white px-2 py-1 rounded-full">
+              50+ Icons
+            </span>
+          </div>
+          <div className="text-left">
+            <div className="text-lg font-semibold text-white mb-1">
+              Professional Icons
                 </div>
-              ))}
+            <div className="text-sm text-purple-100">
+              Search, browse, and add icons instantly
             </div>
           </div>
-        )}
-
-        {/* Neutral Colors Section */}
-        <div>
-          <div className="text-xs text-gray-400 font-medium mb-2">
-            {hasBrandColors ? 'Neutral Colors' : 'Colors'}
+          <div className="mt-3 text-xs text-purple-200 flex items-center">
+            <Plus className="w-3 h-3 mr-1" />
+           With categories, search & more
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            {neutralColors.map(color => (
-              <div key={color.value} className="flex flex-col items-center">
+        </button>
+      </div>
+
+      {/* Shapes Library */}
+      <div className="mb-8">
+        <h3 className="text-sm font-medium text-white mb-4 flex items-center">
+          <ShapesIcon className="w-4 h-4 mr-2 text-blue-400" />
+          Shapes Library
+        </h3>
                 <button
-                  onClick={() => setSelectedColor(color.value)}
-                  className={`w-12 h-12 rounded-md transition-all ${
-                    selectedColor === color.value 
-                      ? 'ring-2 scale-110' 
-                      : 'hover:scale-105'
-                  }`}
-                  style={{ 
-                    backgroundColor: color.value,
-                    border: color.value === '#ffffff' ? '1px solid #e5e7eb' : 'none',
-                    borderColor: selectedColor === color.value ? '#ff4940' : (color.value === '#ffffff' ? '#e5e7eb' : 'transparent'),
-                    borderWidth: selectedColor === color.value ? '2px' : (color.value === '#ffffff' ? '1px' : '0px')
-                  }}
-                  title={color.name}
-                />
-                <span className="text-xs text-gray-300 mt-1">{color.name}</span>
-              </div>
-            ))}
+          onClick={() => setShowShapesLibrary(true)}
+          className="w-full p-6 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg border border-blue-500 hover:from-blue-500 hover:to-cyan-500 transition-all duration-200 group"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-3">
+              <div className="w-4 h-4 bg-white rounded-full"></div>
+              <div className="w-4 h-4 bg-white" style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}></div>
+              <div className="w-4 h-4 bg-white" style={{ transform: 'rotate(45deg)' }}></div>
+            </div>
+            <span className="text-xs bg-white bg-opacity-20 text-white px-2 py-1 rounded-full">
+              30+ Shapes
+            </span>
           </div>
-        </div>
+          <div className="text-left">
+            <div className="text-lg font-semibold text-white mb-1">
+              Geometric Shapes
+            </div>
+            <div className="text-sm text-blue-100">
+              Basic to advanced shapes for any design
+            </div>
+              </div>
+          <div className="mt-3 text-xs text-blue-200 flex items-center">
+            <Plus className="w-3 h-3 mr-1" />
+            Arrows, decorative, business & more
+          </div>
+        </button>
+      </div>
 
-        {/* Selected Color Indicator */}
-        <div className="mt-3 p-2 bg-gray-800 rounded-lg">
+      {/* Color Selector */}
+      <div className="mb-6">
+        <h3 className="text-sm font-medium text-white mb-4 flex items-center">
+          <Palette className="w-4 h-4 mr-2 text-green-400" />
+          Brand Colors
+        </h3>
+        <div className="grid grid-cols-5 gap-2">
+          {brandColors.map((color) => (
+            <button
+              key={color}
+              onClick={() => setCurrentColor(color)}
+              className={`w-10 h-10 rounded-lg border-2 transition-all duration-200 ${
+                currentColor === color 
+                  ? 'border-white scale-110 shadow-lg' 
+                  : 'border-gray-600 hover:border-gray-400'
+              }`}
+              style={{ backgroundColor: color }}
+              title={color}
+            />
+          ))}
+        </div>
+        <div className="mt-3 p-3 bg-gray-800 rounded-lg">
+          <div className="text-xs text-gray-400 mb-1">Selected Color</div>
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-400">Selected:</span>
             <div 
               className="w-4 h-4 rounded border border-gray-600"
-              style={{ backgroundColor: selectedColor }}
+              style={{ backgroundColor: currentColor }}
             />
-            <span className="text-xs text-gray-300">{selectedColor}</span>
+            <span className="text-sm text-white font-mono">{currentColor}</span>
           </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="pt-4 border-t border-gray-700">
-        <h3 className="text-sm font-medium text-gray-300 mb-3">Quick Add</h3>
-        <div className="space-y-2">
-          <button 
-            onClick={() => addQuickElement('headline')}
-            className="w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors text-white hover:opacity-80"
-            style={{ backgroundColor: '#ff4940' }}
-          >
-            Add Headline
-          </button>
-          <button 
-            onClick={() => addQuickElement('logo')}
-            className="w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors text-white hover:opacity-80"
-            style={{ backgroundColor: '#ff4940' }}
-          >
-            Add Logo
-          </button>
-          <button 
-            onClick={() => addQuickElement('cta')}
-            className="w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors text-white hover:opacity-80"
-            style={{ backgroundColor: '#ff4940' }}
-          >
-            Add CTA Button
-          </button>
-          <button 
-            onClick={() => handleElementAdd({ type: 'svg', name: 'SVG', icon: FileImage })}
-            className="w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors text-white hover:opacity-80 flex items-center justify-center space-x-2"
-            style={{ backgroundColor: '#4f46e5' }}
-          >
-            <FileImage className="w-4 h-4" />
-            <span>Upload SVG</span>
-          </button>
-        </div>
+      {/* Usage Tips */}
+      <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <h4 className="text-sm font-medium text-white mb-2">💡 Quick Tips</h4>
+        <ul className="text-xs text-gray-400 space-y-1">
+          <li>• All elements use your selected color</li>
+          <li>• Click to add, drag to position</li>
+          <li>• Use Quick Add for common elements</li>
+          <li>• Browse libraries for more options</li>
+        </ul>
       </div>
+
+      {/* Icon Library Modal */}
+      <IconLibrary 
+        isOpen={showIconLibrary}
+        onClose={() => setShowIconLibrary(false)}
+        onSelectIcon={handleIconSelect}
+        selectedColor={currentColor}
+      />
+
+      {/* Shapes Library Modal */}
+      <ShapesLibrary 
+        isOpen={showShapesLibrary}
+        onClose={() => setShowShapesLibrary(false)}
+        onSelectShape={handleShapeSelect}
+        selectedColor={currentColor}
+      />
     </div>
   );
 }

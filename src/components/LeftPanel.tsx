@@ -3,18 +3,21 @@ import { LayersPanel } from './LayersPanel';
 import { PropertiesPanel } from './PropertiesPanel';
 import { BrandPanel } from './BrandPanel';
 import { PagesPanel } from './PagesPanel';
+import { AlignmentPanel } from './AlignmentPanel';
 import { 
   Layers,
   Settings,
   Palette,
   FileText,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Move3D
 } from 'lucide-react';
 
 const topTabs = [
   { id: 'layers', name: 'Layers', icon: Layers },
   { id: 'properties', name: 'Properties', icon: Settings },
+  { id: 'alignment', name: 'Alignment', icon: Move3D },
 ];
 
 const bottomTabs = [
@@ -38,6 +41,8 @@ export function LeftPanel({ platform, currentFormat }: LeftPanelProps) {
         return <LayersPanel />;
       case 'properties':
         return <PropertiesPanel />;
+      case 'alignment':
+        return <AlignmentPanel canvasFormat={currentFormat} />;
       default:
         return null;
     }

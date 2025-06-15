@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Palette, Download, Save, Undo, Redo, Settings, Menu, X, User, LogOut } from 'lucide-react';
+import { Palette, Download, Save, Undo, Redo, Settings, Menu, X, User, LogOut, Folder, Layout } from 'lucide-react';
 import { useCanvas } from '../contexts/CanvasContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useBrand } from '../contexts/BrandContext';
@@ -9,6 +9,8 @@ import { SettingsModal } from './SettingsModal';
 interface HeaderProps {
   selectedPlatform: string;
   onPlatformChange: (platform: string) => void;
+  onOpenProjects: () => void;
+  onOpenTemplates: () => void;
 }
 
 const platforms = [
@@ -20,7 +22,9 @@ const platforms = [
 
 export function Header({ 
   selectedPlatform, 
-  onPlatformChange
+  onPlatformChange,
+  onOpenProjects,
+  onOpenTemplates
 }: HeaderProps) {
   const { elements, clearCanvas, undo, redo, canUndo, canRedo } = useCanvas();
   const { user, logout } = useAuth();
@@ -125,6 +129,25 @@ export function Header({
         </div>
 
         <div className="flex items-center space-x-3">
+          <button 
+            onClick={onOpenProjects}
+            className="px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 text-white hover:opacity-80"
+            style={{ backgroundColor: '#003a63' }}
+            title="Open Projects"
+          >
+            <Folder className="w-4 h-4" />
+            <span>Projects</span>
+          </button>
+          <button 
+            onClick={onOpenTemplates}
+            className="px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 text-white hover:opacity-80"
+            style={{ backgroundColor: '#003a63' }}
+            title="Browse Templates"
+          >
+            <Layout className="w-4 h-4" />
+            <span>Templates</span>
+          </button>
+          
           <div className="text-xs text-gray-300 px-3 py-2 rounded-lg" style={{ backgroundColor: '#003a63' }}>
             {elements.length} elements
           </div>
