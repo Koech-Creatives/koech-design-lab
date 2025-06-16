@@ -26,28 +26,224 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
   const textRef = useRef<HTMLDivElement>(null);
   const { removeElement, duplicateElement } = useCanvas();
 
+  const [isEditing, setIsEditing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [resizeDirection, setResizeDirection] = useState<string>('');
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [elementStart, setElementStart] = useState({ x: 0, y: 0 });
-  const [resizeStart, setResizeStart] = useState({ width: 0, height: 0 });
-  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [showTextToolbar, setShowTextToolbar] = useState(false);
   const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 });
   const [selectedText, setSelectedText] = useState('');
+  const [textSelection, setTextSelection] = useState<{ start: number; end: number } | null>(null);
+
+  // Debounce utility function
+  function debounce(func: Function, wait: number) {
+    let timeout: NodeJS.Timeout;
+    return function executedFunction(...args: any[]) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  // Dynamic text container resizing
+  const resizeTextContainer = useCallback(() => {
+    if (textRef.current && element.type === 'text' && element.autoWrap !== false) {
+      // Get canvas boundaries from parent canvas element
+      const canvasElement = document.querySelector('[data-canvas="true"]');
+      const canvasWidth = canvasElement ? canvasElement.clientWidth : 1080;
+      const canvasHeight = canvasElement ? canvasElement.clientHeight : 1080;
+      
+      // Create a temporary element to measure text dimensions
+      const tempElement = document.createElement('div');
+      tempElement.style.position = 'absolute';
+      tempElement.style.visibility = 'hidden';
+      tempElement.style.whiteSpace = 'pre-wrap'; // Allow wrapping for multi-line text
+      tempElement.style.wordWrap = 'break-word';
+      tempElement.style.overflowWrap = 'break-word';
+      tempElement.style.fontSize = `${element.fontSize || 18}px`;
+      tempElement.style.fontWeight = element.fontWeight || 'normal';
+      tempElement.style.fontFamily = element.fontFamily || 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+      tempElement.style.padding = '8px';
+      tempElement.style.lineHeight = '1.4';
+      
+      // Set max width based on canvas boundaries and current position
+      const maxPossibleWidth = Math.max(200, canvasWidth - element.x - 20);
+      tempElement.style.maxWidth = `${Math.min(600, maxPossibleWidth)}px`;
+      tempElement.innerHTML = textRef.current.innerHTML || 'Sample Text';
+      
+      document.body.appendChild(tempElement);
+      
+      // Get the natural dimensions
+      const naturalWidth = tempElement.scrollWidth;
+      const naturalHeight = tempElement.scrollHeight;
+      
+      document.body.removeChild(tempElement);
+      
+      // Calculate new dimensions with constraints
+      const minWidth = 100;
+      const minHeight = Math.max(30, (element.fontSize || 18) * 1.4 + 16);
+      
+      // Constrain to canvas boundaries
+      const maxWidth = Math.max(minWidth, canvasWidth - element.x - 10);
+      const maxHeight = Math.max(minHeight, canvasHeight - element.y - 10);
+      
+      const newWidth = Math.max(minWidth, Math.min(maxWidth, naturalWidth + 20));
+      const newHeight = Math.max(minHeight, Math.min(maxHeight, naturalHeight + 10));
+      
+      // Only update if there's a significant change
+      if (Math.abs(newWidth - element.width) > 5 || Math.abs(newHeight - element.height) > 5) {
+        onUpdate({
+          width: newWidth,
+          height: newHeight
+        });
+      }
+    }
+  }, [element, onUpdate]);
+
+  const saveTextContent = () => {
+    if (textRef.current) {
+      // Get the innerHTML to preserve formatting and line breaks
+      let content = textRef.current.innerHTML;
+      
+      // Clean up any unnecessary HTML that might be added by contentEditable
+      content = content
+        .replace(/<div><br><\/div>/g, '<br>')  // Replace empty divs with br
+        .replace(/<div>/g, '<br>')             // Replace div starts with br
+        .replace(/<\/div>/g, '')               // Remove div ends
+        .replace(/^<br>/, '')                  // Remove leading br
+        .replace(/<br>$/, '');                 // Remove trailing br
+      
+      onUpdate({ content: content || 'Double-click to edit' });
+    }
+  };
+
+  // Debounced resize function to prevent too many updates
+  const debouncedResize = useCallback(
+    debounce(() => {
+      resizeTextContainer();
+    }, 100),
+    [resizeTextContainer]
+  );
 
   // Text formatting functions
   const applyTextFormat = (command: string, value?: string) => {
     document.execCommand(command, false, value);
     saveTextContent();
+    resizeTextContainer();
   };
 
-  const saveTextContent = () => {
-    if (textRef.current) {
-      onUpdate({ content: textRef.current.innerHTML });
+  // Apply text properties from TextTab to selected text
+  const applyTextProperty = useCallback((property: string, value: any) => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0 && textRef.current?.contains(selection.anchorNode)) {
+      const range = selection.getRangeAt(0);
+      
+      if (range.toString().length > 0) {
+        // Apply formatting to selected text
+        switch (property) {
+          case 'fontSize':
+            document.execCommand('fontSize', false, '7'); // Use size 7 as base
+            // Then apply custom size via CSS
+            const selectedElements = textRef.current.querySelectorAll('font[size="7"]');
+            selectedElements.forEach(el => {
+              el.removeAttribute('size');
+              (el as HTMLElement).style.fontSize = `${value}px`;
+            });
+            break;
+          case 'fontWeight':
+            if (value === 'bold' || parseInt(value) >= 600) {
+              document.execCommand('bold', false);
+            } else {
+              // Apply custom weight
+              const span = document.createElement('span');
+              span.style.fontWeight = value;
+              range.surroundContents(span);
+            }
+            break;
+          case 'color':
+            document.execCommand('foreColor', false, value);
+            break;
+          case 'fontFamily':
+            document.execCommand('fontName', false, value);
+            break;
+          case 'textTransform':
+            const span = document.createElement('span');
+            span.style.textTransform = value;
+            range.surroundContents(span);
+            break;
+          case 'textAlign':
+            // Text alignment applies to the whole element
+            onUpdate({ textAlign: value });
+            break;
+          case 'italic':
+            document.execCommand('italic', false);
+            break;
+          case 'underline':
+            document.execCommand('underline', false);
+            break;
+          case 'strikethrough':
+            document.execCommand('strikeThrough', false);
+            break;
+          case 'textStyle':
+            // Apply custom styles like boxed, neon, etc.
+            const styleSpan = document.createElement('span');
+            
+            // Apply the style properties
+            if (value.style) {
+              Object.assign(styleSpan.style, value.style);
+            }
+            
+            // Handle special cases for boxed styles
+            if (value.value === 'boxed') {
+              styleSpan.style.display = 'inline-block';
+              styleSpan.style.border = '2px solid currentColor';
+              styleSpan.style.padding = '6px 12px';
+              styleSpan.style.borderRadius = '4px';
+              styleSpan.style.margin = '2px';
+            } else if (value.value === 'round-boxed') {
+              styleSpan.style.display = 'inline-block';
+              styleSpan.style.border = '2px solid currentColor';
+              styleSpan.style.padding = '8px 16px';
+              styleSpan.style.borderRadius = '20px';
+              styleSpan.style.margin = '2px';
+            }
+            
+            try {
+              range.surroundContents(styleSpan);
+            } catch (e) {
+              // If surroundContents fails, try extractContents and appendChild
+              const contents = range.extractContents();
+              styleSpan.appendChild(contents);
+              range.insertNode(styleSpan);
+            }
+            break;
+        }
+        
+        saveTextContent();
+        resizeTextContainer();
+        selection.removeAllRanges();
+        setShowTextToolbar(false);
+      }
     }
-  };
+  }, [onUpdate]);
+
+  // Expose the applyTextProperty function globally for TextTab to use
+  useEffect(() => {
+    if (isSelected && element.type === 'text') {
+      (window as any).applyTextPropertyToSelected = applyTextProperty;
+    }
+    
+    return () => {
+      if ((window as any).applyTextPropertyToSelected === applyTextProperty) {
+        delete (window as any).applyTextPropertyToSelected;
+      }
+    };
+  }, [isSelected, element.type, applyTextProperty]);
 
   const handleTextSelection = () => {
     const selection = window.getSelection();
@@ -155,25 +351,78 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
             L
           </button>
         </div>
+        
+        {/* Hint text */}
+        <div className="ml-2 text-xs text-gray-400">
+          Use TextTab for more options →
+        </div>
       </div>
     );
   };
 
   useEffect(() => {
     if (isEditing && textRef.current) {
-      // Add event listeners for text selection
-      document.addEventListener('mouseup', handleTextSelection);
-      document.addEventListener('keyup', handleTextSelection);
+      const textElement = textRef.current;
       
-      // Focus the text element
-      textRef.current.focus();
+      // Focus the element
+      textElement.focus();
+      
+      const handleInput = () => {
+        saveTextContent();
+        debouncedResize();
+      };
+
+      const handlePaste = (e: ClipboardEvent) => {
+        e.preventDefault();
+        const text = e.clipboardData?.getData('text/plain') || '';
+        document.execCommand('insertText', false, text);
+        saveTextContent();
+        debouncedResize();
+      };
+
+      const handleClickOutside = (e: MouseEvent) => {
+        if (textElement && !textElement.contains(e.target as Node)) {
+          setIsEditing(false);
+          setShowTextToolbar(false);
+          saveTextContent();
+          resizeTextContainer();
+        }
+      };
+
+      // Add event listeners
+      textElement.addEventListener('input', handleInput);
+      textElement.addEventListener('paste', handlePaste);
+      document.addEventListener('mousedown', handleClickOutside);
+
+      return () => {
+        textElement.removeEventListener('input', handleInput);
+        textElement.removeEventListener('paste', handlePaste);
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isEditing, resizeTextContainer, debouncedResize]);
+
+  // Handle text selection for formatting toolbar
+  useEffect(() => {
+    if (isEditing && textRef.current) {
+      const handleSelectionChange = () => {
+        handleTextSelection();
+      };
+
+      document.addEventListener('selectionchange', handleSelectionChange);
       
       return () => {
-        document.removeEventListener('mouseup', handleTextSelection);
-        document.removeEventListener('keyup', handleTextSelection);
+        document.removeEventListener('selectionchange', handleSelectionChange);
       };
     }
   }, [isEditing]);
+
+  // Resize text container when content changes
+  useEffect(() => {
+    if (element.type === 'text' && element.autoWrap !== false) {
+      resizeTextContainer();
+    }
+  }, [element.content, element.fontSize, element.fontFamily, element.fontWeight, resizeTextContainer]);
 
   // Hide toolbar when clicking outside
   useEffect(() => {
@@ -189,135 +438,210 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
     }
   }, [showTextToolbar]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (element.locked || e.button !== 0) return;
-    
+  const handleResizeMouseDown = (e: React.MouseEvent, direction: string) => {
+    e.preventDefault();
     e.stopPropagation();
-    onSelect();
     
-    setIsDragging(true);
-    setDragStart({ x: e.clientX, y: e.clientY });
-    setElementStart({ x: element.x, y: element.y });
-  }, [element.locked, element.x, element.y, onSelect]);
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging && !element.locked) {
-      const deltaX = e.clientX - dragStart.x;
-      const deltaY = e.clientY - dragStart.y;
+    if (element.locked) return;
+    
+    setIsResizing(true);
+    setResizeDirection(direction);
+    setResizeStart({
+      x: e.clientX,
+      y: e.clientY,
+      width: element.width,
+      height: element.height
+    });
+    
+    const handleResizeMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
       
-      const newX = elementStart.x + deltaX;
-      const newY = elementStart.y + deltaY;
-      
-      onUpdate({
-        x: Math.max(0, newX),
-        y: Math.max(0, newY)
-      });
-    } else if (isResizing && !element.locked) {
-      const deltaX = e.clientX - dragStart.x;
-      const deltaY = e.clientY - dragStart.y;
+      const deltaX = e.clientX - resizeStart.x;
+      const deltaY = e.clientY - resizeStart.y;
       
       let newWidth = resizeStart.width;
       let newHeight = resizeStart.height;
-      let newX = elementStart.x;
-      let newY = elementStart.y;
-
-      switch (resizeHandle) {
-        case 'se':
-          newWidth = Math.max(50, resizeStart.width + deltaX);
-          newHeight = Math.max(30, resizeStart.height + deltaY);
+      let newX = element.x;
+      let newY = element.y;
+      
+      // Get canvas boundaries
+      const canvasElement = document.querySelector('[data-canvas="true"]');
+      const canvasWidth = canvasElement ? canvasElement.clientWidth : 1080;
+      const canvasHeight = canvasElement ? canvasElement.clientHeight : 1080;
+      
+      switch (direction) {
+        case 'se': // Southeast
+          newWidth = Math.max(50, Math.min(canvasWidth - element.x, resizeStart.width + deltaX));
+          newHeight = Math.max(30, Math.min(canvasHeight - element.y, resizeStart.height + deltaY));
           break;
-        case 'sw':
+        case 'sw': // Southwest
           newWidth = Math.max(50, resizeStart.width - deltaX);
-          newHeight = Math.max(30, resizeStart.height + deltaY);
-          newX = elementStart.x + deltaX;
+          newHeight = Math.max(30, Math.min(canvasHeight - element.y, resizeStart.height + deltaY));
+          newX = Math.max(0, element.x + (resizeStart.width - newWidth));
           break;
-        case 'ne':
-          newWidth = Math.max(50, resizeStart.width + deltaX);
+        case 'ne': // Northeast
+          newWidth = Math.max(50, Math.min(canvasWidth - element.x, resizeStart.width + deltaX));
           newHeight = Math.max(30, resizeStart.height - deltaY);
-          newY = elementStart.y + deltaY;
+          newY = Math.max(0, element.y + (resizeStart.height - newHeight));
           break;
-        case 'nw':
+        case 'nw': // Northwest
           newWidth = Math.max(50, resizeStart.width - deltaX);
           newHeight = Math.max(30, resizeStart.height - deltaY);
-          newX = elementStart.x + deltaX;
-          newY = elementStart.y + deltaY;
+          newX = Math.max(0, element.x + (resizeStart.width - newWidth));
+          newY = Math.max(0, element.y + (resizeStart.height - newHeight));
           break;
       }
-
+      
+      // Ensure element stays within canvas bounds
+      if (newX + newWidth > canvasWidth) {
+        newWidth = canvasWidth - newX;
+      }
+      if (newY + newHeight > canvasHeight) {
+        newHeight = canvasHeight - newY;
+      }
+      
       onUpdate({
         x: newX,
         y: newY,
         width: newWidth,
         height: newHeight
       });
-    }
-  }, [isDragging, isResizing, dragStart.x, dragStart.y, elementStart.x, elementStart.y, resizeHandle, resizeStart.width, resizeStart.height, onUpdate]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-    setIsResizing(false);
-    setResizeHandle(null);
-  }, []);
-
-  useEffect(() => {
-    if (isDragging || isResizing) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, isResizing, handleMouseMove, handleMouseUp]);
-
-  const handleResizeMouseDown = useCallback((e: React.MouseEvent, handle: string) => {
-    if (element.locked) return;
     
-    e.stopPropagation();
-    onSelect();
+    const handleResizeMouseUp = () => {
+      setIsResizing(false);
+      setResizeDirection('');
+      document.removeEventListener('mousemove', handleResizeMouseMove);
+      document.removeEventListener('mouseup', handleResizeMouseUp);
+      
+      // For text elements, disable auto-wrap when manually resized
+      if (element.type === 'text') {
+        onUpdate({ autoWrap: false });
+      }
+    };
     
-    setIsResizing(true);
-    setResizeHandle(handle);
-    setDragStart({ x: e.clientX, y: e.clientY });
-    setElementStart({ x: element.x, y: element.y });
-    setResizeStart({ width: element.width, height: element.height });
-  }, [element.locked, element.x, element.y, element.width, element.height, onSelect]);
+    document.addEventListener('mousemove', handleResizeMouseMove);
+    document.addEventListener('mouseup', handleResizeMouseUp);
+  };
 
-  const handleDoubleClick = () => {
+  const handleDoubleClick = (e: React.MouseEvent) => {
     if (element.type === 'text' && !element.locked) {
+      e.stopPropagation();
       setIsEditing(true);
+      // Focus the text element after a brief delay to ensure it's ready
+      setTimeout(() => {
+        if (textRef.current) {
+          textRef.current.focus();
+          // Place cursor at the end of text
+          const range = document.createRange();
+          const selection = window.getSelection();
+          range.selectNodeContents(textRef.current);
+          range.collapse(false);
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        }
+      }, 10);
     }
+  };
+
+  const handleTextInput = (e: React.FormEvent) => {
+    // Save content on input
+    saveTextContent();
+    // Debounced resize
+    debouncedResize();
   };
 
   const handleTextBlur = () => {
     setIsEditing(false);
     setShowTextToolbar(false);
     saveTextContent();
+    resizeTextContainer();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      setIsEditing(false);
-      setShowTextToolbar(false);
-    }
-    // Allow text formatting shortcuts
-    if (e.ctrlKey || e.metaKey) {
-      switch (e.key) {
-        case 'b':
-          e.preventDefault();
-          applyTextFormat('bold');
-          break;
-        case 'i':
-          e.preventDefault();
-          applyTextFormat('italic');
-          break;
-        case 'u':
-          e.preventDefault();
-          applyTextFormat('underline');
-          break;
+    // Don't prevent default for normal text editing keys
+    if (isEditing) {
+      // Allow all normal text editing
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setIsEditing(false);
+        setShowTextToolbar(false);
+        saveTextContent();
+        resizeTextContainer();
+        return;
       }
+      
+      // Handle formatting shortcuts
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'b':
+            e.preventDefault();
+            applyTextFormat('bold');
+            break;
+          case 'i':
+            e.preventDefault();
+            applyTextFormat('italic');
+            break;
+          case 'u':
+            e.preventDefault();
+            applyTextFormat('underline');
+            break;
+          default:
+            // Allow other Ctrl/Cmd shortcuts (like Ctrl+A, Ctrl+C, etc.)
+            break;
+        }
+      }
+      
+      // Don't stop propagation for text editing keys
+      return;
     }
+    
+    // Handle non-editing key events
+    e.stopPropagation();
+  };
+
+  const handleTextMouseDown = (e: React.MouseEvent) => {
+    if (isEditing) {
+      // Allow text selection and cursor placement
+      e.stopPropagation();
+      return;
+    }
+    // If not editing, handle as normal element
+    handleMouseDown(e);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (element.locked || isEditing || isResizing) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    onSelect();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - element.x, y: e.clientY - element.y });
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      
+      // Get canvas boundaries
+      const canvasElement = document.querySelector('[data-canvas="true"]');
+      const canvasWidth = canvasElement ? canvasElement.clientWidth : 1080;
+      const canvasHeight = canvasElement ? canvasElement.clientHeight : 1080;
+      
+      const newX = Math.max(0, Math.min(canvasWidth - element.width, e.clientX - dragStart.x));
+      const newY = Math.max(0, Math.min(canvasHeight - element.height, e.clientY - dragStart.y));
+      
+      onUpdate({ x: newX, y: newY });
+    };
+    
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   };
 
   const toggleLock = () => {
@@ -448,31 +772,39 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
         return (
           <div
             ref={textRef}
-            className="w-full h-full overflow-hidden flex items-center"
+            className="w-full h-full"
             style={{
               color: element.color || '#000000',
               fontSize: `${element.fontSize || 18}px`,
               fontWeight: element.fontWeight || 'normal',
-              textAlign: element.textAlign || 'center',
+              textAlign: element.textAlign || 'left',
               fontFamily: element.fontFamily || 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
               lineHeight: '1.4',
               padding: '8px',
-              whiteSpace: element.autoWrap ? 'pre-wrap' : 'nowrap',
-              wordBreak: element.autoWrap ? 'break-word' : 'normal',
-              wordWrap: element.autoWrap ? 'break-word' : 'normal',
-              overflowWrap: element.autoWrap ? 'break-word' : 'normal',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              wordWrap: 'break-word',
+              overflowWrap: 'break-word',
               textTransform: element.textTransform || 'none',
               userSelect: element.locked ? 'none' : (isEditing ? 'text' : 'pointer'),
               cursor: element.locked ? 'not-allowed' : (isEditing ? 'text' : 'pointer'),
-              justifyContent: element.textAlign === 'left' ? 'flex-start' : 
-                             element.textAlign === 'right' ? 'flex-end' : 'center',
-              alignItems: 'center',
+              minHeight: `${(element.fontSize || 18) * 1.4 + 16}px`,
+              display: 'block',
+              overflow: element.autoWrap === false ? 'hidden' : 'visible',
+              resize: element.autoWrap === false ? 'both' : 'none',
+              outline: isEditing ? '2px solid #6366f1' : 'none',
+              outlineOffset: isEditing ? '2px' : '0',
               ...element.customStyle,
             }}
             contentEditable={isEditing && !element.locked}
             suppressContentEditableWarning
+            onInput={handleTextInput}
             onBlur={handleTextBlur}
             onKeyDown={handleKeyDown}
+            onMouseDown={handleTextMouseDown}
+            onMouseUp={(e) => isEditing && e.stopPropagation()}
+            onMouseMove={(e) => isEditing && e.stopPropagation()}
+            onSelect={handleTextSelection}
             dangerouslySetInnerHTML={{ __html: element.content || 'Double-click to edit' }}
           />
         );
@@ -591,7 +923,7 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
     <div
       ref={elementRef}
       className={`absolute select-none group ${
-        element.locked ? 'cursor-not-allowed' : 'cursor-move'
+        element.locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-move')
       } ${isSelected ? 'ring-2 ring-indigo-500' : ''}`}
       style={{
         left: `${element.x}px`,
@@ -603,11 +935,11 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
         display: element.visible === false ? 'none' : 'block',
         transition: isDragging || isResizing ? 'none' : 'all 0.2s ease-in-out',
         transform: `scale(${isDragging || isResizing ? 1.02 : 1})`,
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
+        userSelect: isEditing ? 'text' : 'none',
+        WebkitUserSelect: isEditing ? 'text' : 'none',
         touchAction: 'none'
       }}
-      onMouseDown={handleMouseDown}
+      onMouseDown={!isEditing ? handleMouseDown : undefined}
       onDoubleClick={handleDoubleClick}
     >
       {renderElement()}

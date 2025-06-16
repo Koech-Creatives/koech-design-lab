@@ -1,227 +1,221 @@
 import React, { useState, useEffect } from 'react';
-import { Bug, X, RefreshCw, Trash2, Info } from 'lucide-react';
-import { debugUtils, testConnection } from '../lib/directus';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase, testConnection } from '../lib/supabase';
+import { Bug, ChevronDown, ChevronUp, User, Database, Wifi, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 
 export function DebugPanel() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [errorLogs, setErrorLogs] = useState<any[]>([]);
-  const [connectionStatus, setConnectionStatus] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const { user, isLoading, isAuthenticated } = useAuth();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+  const [supabaseSession, setSupabaseSession] = useState<any>(null);
+  const [authLogs, setAuthLogs] = useState<any[]>([]);
 
-  // Load error logs
-  const loadErrorLogs = () => {
-    const logs = debugUtils.getErrorLogs();
-    setErrorLogs(logs);
-  };
-
-  // Test connection
-  const handleTestConnection = async () => {
-    setIsLoading(true);
-    const result = await testConnection();
-    setConnectionStatus(result);
-    setIsLoading(false);
-  };
-
-  // Clear error logs
-  const handleClearLogs = () => {
-    debugUtils.clearErrorLogs();
-    setErrorLogs([]);
-  };
-
-  // Load logs when panel opens
+  // Test Supabase connection on mount
   useEffect(() => {
-    if (isOpen) {
-      loadErrorLogs();
-      handleTestConnection();
-    }
-  }, [isOpen]);
+    const checkConnection = async () => {
+      try {
+        const result = await testConnection();
+        setConnectionStatus(result.success ? 'connected' : 'error');
+      } catch (error) {
+        setConnectionStatus('error');
+      }
+    };
 
-  // Show debug button only in development
-  if (process.env.NODE_ENV === 'production') {
+    checkConnection();
+  }, []);
+
+  // Monitor Supabase session
+  useEffect(() => {
+    const getSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (!error) {
+          setSupabaseSession(session);
+        }
+      } catch (error) {
+        console.error('Debug panel session error:', error);
+      }
+    };
+
+    getSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log('🔍 [DEBUG] Auth event:', event, session?.user?.email);
+        setSupabaseSession(session);
+        
+        // Log auth events
+        setAuthLogs(prev => [...prev.slice(-9), {
+          timestamp: new Date().toISOString(),
+          event,
+          userEmail: session?.user?.email,
+          userId: session?.user?.id,
+          hasSession: !!session
+        }]);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Only show in development
+  if (import.meta.env.PROD) {
     return null;
   }
 
-  if (!isOpen) {
-    return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 p-3 rounded-full shadow-lg z-50 text-white hover:opacity-80 transition-opacity"
-        style={{ backgroundColor: '#ff4940' }}
-        title="Open Debug Panel"
-      >
-        <Bug className="w-5 h-5" />
-      </button>
-    );
-  }
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'connected':
+        return <CheckCircle className="w-4 h-4 text-green-400" />;
+      case 'error':
+        return <XCircle className="w-4 h-4 text-red-400" />;
+      default:
+        return <AlertCircle className="w-4 h-4 text-yellow-400 animate-pulse" />;
+    }
+  };
 
   return (
-    <div className="fixed bottom-4 right-4 w-96 max-h-96 rounded-lg shadow-2xl z-50 border overflow-hidden"
-         style={{ backgroundColor: '#002e51', borderColor: '#004080' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b" style={{ borderColor: '#004080' }}>
-        <div className="flex items-center space-x-2">
-          <Bug className="w-4 h-4 text-red-400" />
-          <h3 className="text-sm font-medium text-white">Debug Panel</h3>
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={loadErrorLogs}
-            className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-white"
-            title="Refresh logs"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setIsOpen(false)}
-            className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-white"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+    <div className="fixed bottom-4 right-4 z-50">
+      {/* Toggle Button */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg border border-gray-700 hover:bg-gray-800 transition-colors"
+      >
+        <Bug className="w-4 h-4" />
+        <span className="text-sm font-medium">Debug</span>
+        {isExpanded ? (
+          <ChevronDown className="w-4 h-4" />
+        ) : (
+          <ChevronUp className="w-4 h-4" />
+        )}
+      </button>
 
-      {/* Content */}
-      <div className="p-3 space-y-3 overflow-y-auto max-h-80">
-        {/* Connection Status */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-medium text-gray-300">Connection Status</h4>
-            <button
-              onClick={handleTestConnection}
-              disabled={isLoading}
-              className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50"
-            >
-              {isLoading ? 'Testing...' : 'Test'}
-            </button>
-          </div>
-          <div className={`p-2 rounded text-xs ${
-            connectionStatus?.success 
-              ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
-              : 'bg-red-500/10 text-red-400 border border-red-500/20'
-          }`}>
-            {connectionStatus?.success ? (
-              <div>
-                <div className="flex items-center space-x-1">
-                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  <span>Connected to Directus</span>
-                </div>
-                {connectionStatus.data && (
-                  <div className="mt-1 text-xs opacity-75">
-                    Version: {connectionStatus.data.directus?.version || 'Unknown'}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div>
-                <div className="flex items-center space-x-1">
-                  <span className="w-2 h-2 bg-red-400 rounded-full"></span>
-                  <span>Connection Failed</span>
-                </div>
-                {connectionStatus?.error && (
-                  <div className="mt-1 text-xs opacity-75">
-                    {connectionStatus.error.message || 'Unknown error'}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Error Logs */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-medium text-gray-300">
-              Error Logs ({errorLogs.length})
-            </h4>
-            {errorLogs.length > 0 && (
-              <button
-                onClick={handleClearLogs}
-                className="text-xs text-red-400 hover:text-red-300"
-                title="Clear all logs"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-
-          {errorLogs.length === 0 ? (
-            <div className="p-2 rounded text-xs text-gray-400 bg-gray-800/50">
-              No errors logged
+      {/* Debug Panel */}
+      {isExpanded && (
+        <div className="absolute bottom-12 right-0 w-96 max-h-96 overflow-y-auto bg-gray-900 border border-gray-700 rounded-lg shadow-xl">
+          <div className="p-4 space-y-4">
+            {/* Header */}
+            <div className="flex items-center gap-2 border-b border-gray-700 pb-2">
+              <Bug className="w-5 h-5 text-blue-400" />
+              <h3 className="text-white font-semibold">Debug Panel</h3>
             </div>
-          ) : (
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {errorLogs.slice().reverse().map((log, index) => (
-                <div
-                  key={index}
-                  className="p-2 rounded text-xs bg-red-500/10 border border-red-500/20"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-red-400">{log.operation}</span>
-                    <span className="text-xs text-gray-400">
-                      {new Date(log.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  <div className="text-red-300">
-                    {log.error.message}
-                  </div>
-                  {log.error.status && (
-                    <div className="text-gray-400 mt-1">
-                      Status: {log.error.status} {log.error.statusText}
+
+            {/* Connection Status */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Wifi className="w-4 h-4 text-blue-400" />
+                <span className="text-sm text-gray-300">Supabase Connection</span>
+                {getStatusIcon(connectionStatus)}
+              </div>
+              <div className="text-xs text-gray-400 ml-6">
+                Status: {connectionStatus}
+              </div>
+            </div>
+
+            {/* Auth Status */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-green-400" />
+                <span className="text-sm text-gray-300">Authentication</span>
+                {isAuthenticated ? (
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-red-400" />
+                )}
+              </div>
+              <div className="text-xs text-gray-400 ml-6 space-y-1">
+                <div>Loading: {isLoading ? 'Yes' : 'No'}</div>
+                <div>Authenticated: {isAuthenticated ? 'Yes' : 'No'}</div>
+                <div>User ID: {user?.id || 'None'}</div>
+                <div>Email: {user?.email || 'None'}</div>
+                <div>Name: {user?.first_name} {user?.last_name}</div>
+                <div>Phone: {user?.phone || 'Not provided'}</div>
+              </div>
+            </div>
+
+            {/* Supabase Session */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Database className="w-4 h-4 text-purple-400" />
+                <span className="text-sm text-gray-300">Supabase Session</span>
+              </div>
+              <div className="text-xs text-gray-400 ml-6 space-y-1">
+                <div>Has Session: {supabaseSession ? 'Yes' : 'No'}</div>
+                {supabaseSession && (
+                  <>
+                    <div>User ID: {supabaseSession.user?.id}</div>
+                    <div>Email: {supabaseSession.user?.email}</div>
+                    <div>Email Confirmed: {supabaseSession.user?.email_confirmed_at ? 'Yes' : 'No'}</div>
+                    <div>Created: {supabaseSession.user?.created_at ? new Date(supabaseSession.user.created_at).toLocaleString() : 'Unknown'}</div>
+                    <div>Metadata: {JSON.stringify(supabaseSession.user?.user_metadata || {}, null, 2)}</div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Auth Event Log */}
+            {authLogs.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-yellow-400" />
+                  <span className="text-sm text-gray-300">Recent Auth Events</span>
+                </div>
+                <div className="text-xs text-gray-400 ml-6 space-y-1 max-h-32 overflow-y-auto">
+                  {authLogs.slice(-5).reverse().map((log, index) => (
+                    <div key={index} className="border-l-2 border-gray-600 pl-2">
+                      <div className="text-yellow-400">
+                        [{log.timestamp.split('T')[1].split('.')[0]}] {log.event}
+                      </div>
+                      {log.userEmail && (
+                        <div className="text-gray-500">Email: {log.userEmail}</div>
+                      )}
+                      {log.userId && (
+                        <div className="text-gray-500">ID: {log.userId.substring(0, 8)}...</div>
+                      )}
                     </div>
-                  )}
-                  {log.context && (
-                    <details className="mt-1">
-                      <summary className="text-gray-400 cursor-pointer">
-                        Context
-                      </summary>
-                      <pre className="text-xs text-gray-300 mt-1 overflow-x-auto">
-                        {JSON.stringify(log.context, null, 2)}
-                      </pre>
-                    </details>
-                  )}
+                  ))}
                 </div>
-              ))}
+              </div>
+            )}
+
+            {/* Environment Info */}
+            <div className="space-y-2 border-t border-gray-700 pt-2">
+              <div className="text-xs text-gray-500">
+                <div>Environment: {import.meta.env.MODE}</div>
+                <div>Supabase URL: {import.meta.env.VITE_SUPABASE_URL ? 'Set' : 'Missing'}</div>
+                <div>Supabase Key: {import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Set' : 'Missing'}</div>
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Quick Actions */}
-        <div>
-          <h4 className="text-xs font-medium text-gray-300 mb-2">Quick Actions</h4>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => {
-                console.log('🧪 Running endpoint tests...');
-                debugUtils.testAllEndpoints();
-              }}
-              className="p-2 rounded text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20"
-            >
-              Test Endpoints
-            </button>
-            <button
-              onClick={() => {
-                console.log('📊 Current localStorage data:', {
-                  directus_token: localStorage.getItem('directus_token'),
-                  brandAssets: localStorage.getItem('brandAssets'),
-                  currentDesign: localStorage.getItem('currentDesign')
-                });
-              }}
-              className="p-2 rounded text-xs bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20"
-            >
-              Show Storage
-            </button>
+            {/* Quick Actions */}
+            <div className="space-y-2 border-t border-gray-700 pt-2">
+              <div className="text-sm text-gray-300 mb-2">Quick Actions:</div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    console.log('🔍 Current Auth State:', {
+                      user,
+                      isLoading,
+                      isAuthenticated,
+                      supabaseSession
+                    });
+                  }}
+                  className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded"
+                >
+                  Log State
+                </button>
+                <button
+                  onClick={() => setAuthLogs([])}
+                  className="text-xs bg-gray-600 hover:bg-gray-700 text-white px-2 py-1 rounded"
+                >
+                  Clear Logs
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* Info */}
-        <div className="p-2 rounded text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20">
-          <div className="flex items-center space-x-1 mb-1">
-            <Info className="w-3 h-3" />
-            <span className="font-medium">Debug Info</span>
-          </div>
-          <div>Open browser console for detailed logs</div>
-        </div>
-      </div>
+      )}
     </div>
   );
 } 

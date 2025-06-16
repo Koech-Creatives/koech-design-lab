@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { projectAPI } from '../lib/directus';
+// import { projectAPI } from '../lib/directus'; // COMMENTED OUT - Using Supabase directly
+import { projectAPI } from '../lib/supabase'; // Using Supabase directly
 import { useAuth } from './AuthContext';
 import { useCanvas } from './CanvasContext';
 import { usePages } from './PagesContext';
@@ -79,6 +80,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         };
         setCurrentProject(newProject);
         setProjects(prev => [...prev, newProject]);
+      } else {
+        console.error('Failed to create project:', result.error);
       }
     } catch (error) {
       console.error('Failed to create project:', error);
@@ -105,6 +108,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         setProjects(prev => prev.map(p => 
           p.id === currentProject.id ? { ...p, ...updates } : p
         ));
+      } else {
+        console.error('Failed to save project:', result.error);
       }
     } catch (error) {
       console.error('Failed to save project:', error);
@@ -138,6 +143,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         if (currentProject?.id === projectId) {
           setCurrentProject(null);
         }
+      } else {
+        console.error('Failed to delete project:', result.error);
       }
     } catch (error) {
       console.error('Failed to delete project:', error);
@@ -151,9 +158,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoading(true);
     try {
-      const result = await projectAPI.getByUser(user.id);
+      const result = await projectAPI.getByUserId(user.id);
       if (result.success && result.projects) {
         setProjects(result.projects);
+      } else {
+        console.error('Failed to load projects:', result.error);
       }
     } catch (error) {
       console.error('Failed to load projects:', error);

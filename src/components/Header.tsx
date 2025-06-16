@@ -28,7 +28,7 @@ export function Header({
 }: HeaderProps) {
   const { elements, clearCanvas, undo, redo, canUndo, canRedo } = useCanvas();
   const { user, logout } = useAuth();
-  const { saveBrandToDirectus } = useBrand();
+  const { saveBrandToSupabase } = useBrand(); // Using Supabase directly
   const { saveProject } = useProject();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -43,9 +43,9 @@ export function Header({
     
     localStorage.setItem('currentDesign', JSON.stringify(designData));
     
-    // Save both brand and project data to Directus
+    // Save both brand and project data to Supabase
     await Promise.all([
-      saveBrandToDirectus(),
+      saveBrandToSupabase(),
       saveProject()
     ]);
     

@@ -32,6 +32,7 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [showDimensionsPanel, setShowDimensionsPanel] = useState(true);
+  const isLoadingElementsRef = useRef(false);
 
   useEffect(() => {
     // When platform changes, update to the first format of that platform
@@ -50,20 +51,27 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
     }
   }, [template]);
 
-  // Sync elements with current page
+  // Sync elements with current page (only when not loading)
   useEffect(() => {
-    updatePageElements(currentPageId, elements);
-  }, [elements, currentPageId, updatePageElements]);
+    if (!isLoadingElementsRef.current) {
+      updatePageElements(currentPageId, elements);
+    }
+  }, [elements, currentPageId]);
 
   // Load elements when switching pages
   useEffect(() => {
     const pageElements = getCurrentPageElements();
     // Only update if the page has different elements
     if (JSON.stringify(elements) !== JSON.stringify(pageElements)) {
+      isLoadingElementsRef.current = true;
       clearCanvas();
       pageElements.forEach((element: any) => {
         addElement(element);
       });
+      // Reset the flag after a brief delay to allow all updates to complete
+      setTimeout(() => {
+        isLoadingElementsRef.current = false;
+      }, 100);
     }
   }, [currentPageId]);
 
@@ -149,7 +157,6 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
             const centerX = (currentFormat.width - 200) / 2;
             const centerY = (currentFormat.height - 40) / 2;
             addElement({
-              id: Date.now().toString(),
               type: 'text',
               x: centerX,
               y: centerY,
@@ -173,7 +180,6 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
             const centerX = (currentFormat.width - 100) / 2;
             const centerY = (currentFormat.height - 2) / 2;
             addElement({
-              id: Date.now().toString(),
               type: 'line',
               x: centerX,
               y: centerY,
@@ -228,7 +234,6 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
               const y = (e.clientY - rect.top) / zoomLevel - 75;
               
               addElement({
-                id: Date.now().toString(),
                 type: 'image',
                 x: Math.max(0, x),
                 y: Math.max(0, y),
@@ -249,41 +254,55 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
         const x = (e.clientX - rect.left) / zoomLevel - 50;
         const y = (e.clientY - rect.top) / zoomLevel - 50;
         
-        const newElement = {
-          id: Date.now().toString(),
-          type: elementType,
-          x: Math.max(0, x),
-          y: Math.max(0, y),
-          width: 100,
-          height: 100,
-          color: '#6366f1',
-          backgroundColor: '#6366f1',
-        };
-        
-        // Adjust size based on element type
+        // Create element based on type
         switch (elementType) {
           case 'text':
-            newElement.width = 200;
-            newElement.height = 40;
-            newElement.content = 'Your text here';
-            newElement.fontSize = 18;
-            newElement.color = '#000000';
-            newElement.fontFamily = 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-            newElement.textAlign = 'center';
-            newElement.autoWrap = true;
+            addElement({
+              type: 'text',
+              x: Math.max(0, x),
+              y: Math.max(0, y),
+              width: 200,
+              height: 40,
+              content: 'Your text here',
+              fontSize: 18,
+              color: '#000000',
+              fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
+              textAlign: 'center',
+              autoWrap: true,
+            });
             break;
           case 'image':
-            newElement.width = 200;
-            newElement.height = 150;
-            newElement.src = 'https://via.placeholder.com/200x150?text=Image';
+            addElement({
+              type: 'image',
+              x: Math.max(0, x),
+              y: Math.max(0, y),
+              width: 200,
+              height: 150,
+              src: 'https://via.placeholder.com/200x150?text=Image',
+            });
             break;
           case 'line':
-            newElement.width = 150;
-            newElement.height = 3;
+            addElement({
+              type: 'line',
+              x: Math.max(0, x),
+              y: Math.max(0, y),
+              width: 150,
+              height: 3,
+              backgroundColor: '#6366f1',
+            });
+            break;
+          default:
+            addElement({
+              type: elementType,
+              x: Math.max(0, x),
+              y: Math.max(0, y),
+              width: 100,
+              height: 100,
+              color: '#6366f1',
+              backgroundColor: '#6366f1',
+            });
             break;
         }
-        
-        addElement(newElement);
       }
     }
   };
@@ -503,6 +522,7 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
           <div className="flex justify-center items-center h-full">
             <div
               ref={canvasRef}
+              data-canvas="true"
               className={`relative border-2 overflow-hidden transition-all duration-300 ${
                 isDragOver 
                   ? 'bg-red-50' 

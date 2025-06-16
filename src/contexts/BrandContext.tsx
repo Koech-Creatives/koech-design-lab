@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { brandAPI } from '../lib/directus';
+// import { brandAPI } from '../lib/directus'; // COMMENTED OUT - Using Supabase directly
+import { brandAPI } from '../lib/supabase'; // Using Supabase directly
 import { useAuth } from './AuthContext';
 
 interface Color {
@@ -27,8 +28,8 @@ interface BrandContextType {
   addFont: (font: Font) => void;
   removeFont: (name: string) => void;
   setLogo: (url: string) => void;
-  saveBrandToDirectus: () => Promise<void>;
-  loadBrandFromDirectus: () => Promise<void>;
+  saveBrandToSupabase: () => Promise<void>; // Using Supabase directly
+  loadBrandFromSupabase: () => Promise<void>; // Using Supabase directly
 }
 
 const BrandContext = createContext<BrandContextType | undefined>(undefined);
@@ -80,10 +81,10 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     saveBrandAssets(brandAssets);
   }, [brandAssets]);
 
-  // Load brand data from Directus when user is authenticated
+  // Load brand data from Supabase when user is authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
-      loadBrandFromDirectus();
+      loadBrandFromSupabase();
     }
   }, [isAuthenticated, user]);
 
@@ -122,7 +123,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
-  const saveBrandToDirectus = async () => {
+  const saveBrandToSupabase = async () => {
     if (!user) return;
 
     try {
@@ -136,24 +137,29 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
 
       if (currentBrandId) {
         // Update existing brand
-        await brandAPI.update(currentBrandId, brandData);
+        const result = await brandAPI.update(currentBrandId, brandData);
+        if (!result.success) {
+          console.error('Failed to update brand:', result.error);
+        }
       } else {
         // Create new brand
         const result = await brandAPI.create(brandData);
         if (result.success && result.brand) {
           setCurrentBrandId(result.brand.id);
+        } else {
+          console.error('Failed to create brand:', result.error);
         }
       }
     } catch (error) {
-      console.error('Failed to save brand to Directus:', error);
+      console.error('Failed to save brand to Supabase:', error);
     }
   };
 
-  const loadBrandFromDirectus = async () => {
+  const loadBrandFromSupabase = async () => {
     if (!user) return;
 
     try {
-      const result = await brandAPI.getByUser(user.id);
+      const result = await brandAPI.getByUserId(user.id);
       if (result.success && result.brands && result.brands.length > 0) {
         const brand = result.brands[0]; // Use the first brand for now
         setCurrentBrandId(brand.id);
@@ -164,7 +170,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         });
       }
     } catch (error) {
-      console.error('Failed to load brand from Directus:', error);
+      console.error('Failed to load brand from Supabase:', error);
     }
   };
 
@@ -177,8 +183,8 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       addFont,
       removeFont,
       setLogo,
-      saveBrandToDirectus,
-      loadBrandFromDirectus,
+      saveBrandToSupabase,
+      loadBrandFromSupabase,
     }}>
       {children}
     </BrandContext.Provider>

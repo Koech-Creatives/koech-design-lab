@@ -15,6 +15,7 @@ import { PagesProvider } from './contexts/PagesContext';
 import { BackgroundProvider } from './contexts/BackgroundContext';
 import { ProjectProvider } from './contexts/ProjectContext';
 import { AuthWrapper } from './components/AuthWrapper';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   const [selectedPlatform, setSelectedPlatform] = useState('instagram');
@@ -23,62 +24,68 @@ function App() {
   const [showProjectsModal, setShowProjectsModal] = useState(false);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
 
+  const AppContent = () => (
+    <BrandProvider>
+      <CanvasProvider>
+        <ToolsProvider>
+          <PagesProvider>
+            <ProjectProvider>
+              <BackgroundProvider>
+                <div className="flex flex-col h-screen overflow-hidden text-white" style={{ backgroundColor: '#1a1a1a' }}>
+                  <Header 
+                    selectedPlatform={selectedPlatform}
+                    onPlatformChange={setSelectedPlatform}
+                    onOpenProjects={() => setShowProjectsModal(true)}
+                    onOpenTemplates={() => setShowTemplatesModal(true)}
+                  />
+                  <div className="flex flex-1 overflow-hidden">
+                    <Sidebar 
+                      currentFormat={currentFormat}
+                    />
+                    <main className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: '#1a1a1a' }}>
+                      <Canvas 
+                        platform={selectedPlatform}
+                        template={selectedTemplate}
+                        onFormatChange={setCurrentFormat}
+                      />
+                    </main>
+                    <LeftPanel platform={selectedPlatform} currentFormat={currentFormat} />
+                  </div>
+                  
+                  {/* Floating Color Palette - Always on top when element is selected */}
+                  <FloatingColorPalette />
+                  
+                  {/* Debug Panel - Only in development */}
+                  <DebugPanel />
+                  
+                  {/* Modal Windows */}
+                  <ProjectsModal 
+                    isOpen={showProjectsModal}
+                    onClose={() => setShowProjectsModal(false)}
+                  />
+                  <TemplatesModal 
+                    isOpen={showTemplatesModal}
+                    onClose={() => setShowTemplatesModal(false)}
+                    selectedPlatform={selectedPlatform}
+                    onTemplateSelect={setSelectedTemplate}
+                  />
+                </div>
+              </BackgroundProvider>
+            </ProjectProvider>
+          </PagesProvider>
+        </ToolsProvider>
+      </CanvasProvider>
+    </BrandProvider>
+  );
+
   return (
-    <AuthProvider>
-      <AuthWrapper>
-        <BrandProvider>
-          <CanvasProvider>
-            <ToolsProvider>
-              <PagesProvider>
-                <ProjectProvider>
-                  <BackgroundProvider>
-                    <div className="flex flex-col h-screen overflow-hidden text-white" style={{ backgroundColor: '#1a1a1a' }}>
-                      <Header 
-                        selectedPlatform={selectedPlatform}
-                        onPlatformChange={setSelectedPlatform}
-                        onOpenProjects={() => setShowProjectsModal(true)}
-                        onOpenTemplates={() => setShowTemplatesModal(true)}
-                      />
-                      <div className="flex flex-1 overflow-hidden">
-                        <Sidebar 
-                          currentFormat={currentFormat}
-                        />
-                        <main className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: '#1a1a1a' }}>
-                          <Canvas 
-                            platform={selectedPlatform}
-                            template={selectedTemplate}
-                            onFormatChange={setCurrentFormat}
-                          />
-                        </main>
-                        <LeftPanel platform={selectedPlatform} currentFormat={currentFormat} />
-                      </div>
-                      
-                      {/* Floating Color Palette - Always on top when element is selected */}
-                      <FloatingColorPalette />
-                      
-                      {/* Debug Panel - Only in development */}
-                      <DebugPanel />
-                      
-                      {/* Modal Windows */}
-                      <ProjectsModal 
-                        isOpen={showProjectsModal}
-                        onClose={() => setShowProjectsModal(false)}
-                      />
-                      <TemplatesModal 
-                        isOpen={showTemplatesModal}
-                        onClose={() => setShowTemplatesModal(false)}
-                        selectedPlatform={selectedPlatform}
-                        onTemplateSelect={setSelectedTemplate}
-                      />
-                    </div>
-                  </BackgroundProvider>
-                </ProjectProvider>
-              </PagesProvider>
-            </ToolsProvider>
-          </CanvasProvider>
-        </BrandProvider>
-      </AuthWrapper>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AuthWrapper>
+          <AppContent />
+        </AuthWrapper>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
