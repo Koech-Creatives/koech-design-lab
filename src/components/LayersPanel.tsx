@@ -132,9 +132,10 @@ export function LayersPanel() {
               onClick={() => selectElement(layer.id)}
               className={`flex items-center space-x-2 p-3 rounded-lg transition-all duration-200 cursor-pointer group ${
                 selectedElement === layer.id 
-                  ? 'bg-indigo-600 text-white' 
+                  ? 'text-white' 
                   : 'hover:bg-gray-800 text-gray-300'
               }`}
+              style={selectedElement === layer.id ? { backgroundColor: 'rgba(255, 127, 80, 0.2)' } : {}}
             >
               <div className="flex items-center space-x-1">
                 <button
@@ -185,7 +186,7 @@ export function LayersPanel() {
                     className="p-1 hover:bg-gray-700 rounded transition-colors"
                     title="Change Color"
                   >
-                    <Palette className="w-3 h-3 text-purple-400" />
+                    <Palette className="w-3 h-3" style={{ color: 'rgba(255, 127, 80, 0.8)' }} />
                   </button>
                 )}
                 {layer.type === 'image' && (
@@ -306,7 +307,8 @@ export function LayersPanel() {
                   />
                   <button
                     onClick={() => handleUrlSubmit(layer.id)}
-                    className="px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded transition-colors"
+                    className="px-3 py-1 rounded transition-colors hover:opacity-80"
+                    style={{ backgroundColor: 'rgba(255, 127, 80, 0.2)' }}
                   >
                     <Link className="w-3 h-3" />
                   </button>

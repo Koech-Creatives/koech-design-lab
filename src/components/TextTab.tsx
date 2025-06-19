@@ -20,11 +20,11 @@ import {
   Minus,
   RotateCcw,
   Sparkles,
-  Shadow,
   Layers,
   Circle,
   Square
 } from 'lucide-react';
+import { useCanvas } from '../contexts/CanvasContext';
 
 interface TextTabProps {
   onAddElement: (element: any) => void;
@@ -91,21 +91,29 @@ const textStyles = [
     name: 'Boxed', 
     value: 'boxed',
     style: { 
+      display: 'inline-block',
       border: '2px solid currentColor', 
-      padding: '8px 16px',
-      borderRadius: '4px'
+      padding: '6px 12px',
+      borderRadius: '4px',
+      margin: '2px',
+      backgroundColor: 'currentColor',
+      color: 'white'
     },
-    description: 'Text with border'
+    description: 'Text with filled box'
   },
   { 
     name: 'Round Boxed', 
     value: 'round-boxed',
     style: { 
+      display: 'inline-block',
       border: '2px solid currentColor', 
       padding: '8px 16px',
-      borderRadius: '20px'
+      borderRadius: '20px',
+      margin: '2px',
+      backgroundColor: 'currentColor',
+      color: 'white'
     },
-    description: 'Rounded border'
+    description: 'Rounded filled box'
   },
   { 
     name: 'Neon', 
@@ -120,7 +128,7 @@ const textStyles = [
     name: 'Shadow', 
     value: 'shadow',
     style: { 
-      textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
+      textShadow: '3px 3px 6px rgba(0,0,0,0.7), 1px 1px 2px rgba(0,0,0,0.5)'
     },
     description: 'Drop shadow'
   },
@@ -144,6 +152,13 @@ const textStyles = [
     },
     description: 'Gradient fill'
   },
+];
+
+// Brand colors palette
+const brandColors = [
+  '#000000', '#ffffff', '#ff4940', '#6366f1', '#8b5cf6', 
+  '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#64748b',
+  '#1f2937', '#374151', '#6b7280', '#9ca3af', '#d1d5db'
 ];
 
 // Quick text types
@@ -190,115 +205,170 @@ const quickTextTypes = [
   },
   {
     name: 'Quote',
-    content: '"Inspiring quote or testimonial"',
-    fontSize: 18,
-    fontWeight: '400',
+    content: '"Your inspirational quote here"',
+    fontSize: 22,
+    fontWeight: '500',
     icon: Quote,
-    description: 'Quotation text'
+    description: 'Quoted text'
   },
+  {
+    name: 'Hashtag',
+    content: '#YourHashtag',
+    fontSize: 18,
+    fontWeight: '600',
+    icon: Hash,
+    description: 'Social media tag'
+  }
 ];
 
-// Brand colors
-const brandColors = [
-  '#000000', // Black
-  '#ffffff', // White
-  '#ff4940', // Red
-  '#6366f1', // Indigo
-  '#8b5cf6', // Purple
-  '#06b6d4', // Cyan
-  '#10b981', // Emerald
-  '#f59e0b', // Amber
-  '#ef4444', // Red
-  '#64748b', // Slate
-];
+// Helper function to determine if a color is light or dark
+const isLightColor = (color: string): boolean => {
+  // Remove # if present
+  const hex = color.replace('#', '');
+  
+  // Convert to RGB
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  
+  // Calculate luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  
+  return luminance > 0.5;
+};
+
+// Helper function to get contrasting text color
+const getContrastColor = (backgroundColor: string): string => {
+  return isLightColor(backgroundColor) ? '#000000' : '#ffffff';
+};
 
 export function TextTab({ onAddElement }: TextTabProps) {
-  const [selectedColor, setSelectedColor] = useState(brandColors[0]);
-  const [selectedFont, setSelectedFont] = useState(fontFamilies[0]);
-  const [selectedWeight, setSelectedWeight] = useState(fontWeights[4]); // Semibold
-  const [selectedTransform, setSelectedTransform] = useState(textTransforms[0]);
-  const [selectedStyle, setSelectedStyle] = useState(textStyles[0]);
+  const [customText, setCustomText] = useState('Your text here');
+  const [selectedFont, setSelectedFont] = useState(fontFamilies[0].value);
+  const [selectedFontWeight, setSelectedFontWeight] = useState('400');
+  const [selectedTextTransform, setSelectedTextTransform] = useState('none');
+  const [selectedStyle, setSelectedStyle] = useState('normal');
+  const [selectedColor, setSelectedColor] = useState('#000000');
   const [fontSize, setFontSize] = useState(18);
-  const [textAlign, setTextAlign] = useState('center');
+  const [textAlign, setTextAlign] = useState('left');
+  const [isEditingText, setIsEditingText] = useState(false);
+  
+  const { selectedElement, removeElement, updateElement, elements } = useCanvas();
+  
+  // Get the selected element object
+  const selectedElementObj = selectedElement ? elements.find(el => el.id === selectedElement) : null;
+  
+  // Check if we have a selected text element
+  const isTextSelected = selectedElementObj?.type === 'text';
+
+  const applyTextProperty = (property: string, value: any) => {
+    if (isTextSelected && selectedElement) {
+      updateElement(selectedElement, { [property]: value });
+    }
+  };
 
   const handleQuickAdd = (textType: any) => {
-    onAddElement({
+    const element = {
       id: Date.now().toString(),
       type: 'text',
-      x: 400,
-      y: 300,
-      width: 300,
-      height: Math.max(textType.fontSize * 1.5, 40),
+      x: 300,
+      y: 200,
+      width: 200,
+      height: 50,
       content: textType.content,
       fontSize: textType.fontSize,
       fontWeight: textType.fontWeight,
+      fontFamily: selectedFont,
       color: selectedColor,
-      fontFamily: selectedFont.value,
       textAlign: textAlign,
-      textTransform: selectedTransform.value,
-      textStyle: selectedStyle.value,
-      customStyle: selectedStyle.style,
-      autoWrap: true, // Enable auto-wrap
-    });
+      autoWrap: true,
+      autoResize: true,
+      textTransform: selectedTextTransform,
+      textStyle: selectedStyle,
+      opacity: 1,
+      rotation: 0
+    };
+    onAddElement(element);
   };
 
   const handleCustomTextAdd = () => {
-    onAddElement({
+    const element = {
       id: Date.now().toString(),
       type: 'text',
-      x: 400,
-      y: 300,
-      width: 300,
-      height: Math.max(fontSize * 1.5, 40),
-      content: 'Your custom text',
+      x: 300,
+      y: 200,
+      width: 200,
+      height: 50,
+      content: customText,
       fontSize: fontSize,
-      fontWeight: selectedWeight.value,
+      fontWeight: selectedFontWeight,
+      fontFamily: selectedFont,
       color: selectedColor,
-      fontFamily: selectedFont.value,
       textAlign: textAlign,
-      textTransform: selectedTransform.value,
-      textStyle: selectedStyle.value,
-      customStyle: selectedStyle.style,
-      autoWrap: true, // Enable auto-wrap
-    });
+      autoWrap: true,
+      autoResize: true,
+      textTransform: selectedTextTransform,
+      textStyle: selectedStyle,
+      opacity: 1,
+      rotation: 0
+    };
+    onAddElement(element);
+  };
+
+  const handleFontSizeChange = (newSize: number) => {
+    setFontSize(newSize);
+    applyTextProperty('fontSize', newSize);
+  };
+
+  const handleFontWeightChange = (weight: string) => {
+    setSelectedFontWeight(weight);
+    applyTextProperty('fontWeight', weight);
+  };
+
+  const handleFontFamilyChange = (fontValue: string) => {
+    setSelectedFont(fontValue);
+    applyTextProperty('fontFamily', fontValue);
+  };
+
+  const handleColorChange = (color: string) => {
+    setSelectedColor(color);
+    applyTextProperty('color', color);
+  };
+
+  const handleTextStyleApply = (style: any) => {
+    setSelectedStyle(style.value);
+    applyTextProperty('textStyle', style.value);
+  };
+
+  const handleTextAlignChange = (alignment: string) => {
+    setTextAlign(alignment);
+    applyTextProperty('textAlign', alignment);
+  };
+
+  const handleTextTransformChange = (transform: string) => {
+    setSelectedTextTransform(transform);
+    applyTextProperty('textTransform', transform);
   };
 
   return (
-    <div className="w-80 bg-gray-900 border-l border-gray-700 p-6 overflow-y-auto">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-white mb-2">Text Tools</h2>
-        <p className="text-sm text-gray-400">Create and style text elements</p>
-      </div>
-
-      {/* Quick Add Text */}
-      <div className="mb-8">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center">
-          <Zap className="w-4 h-4 mr-2 text-yellow-400" />
-          Quick Add Text
-        </h3>
-        <div className="space-y-2">
+    <div className="p-3 space-y-4">
+      {/* Quick Text Types */}
+      <div>
+        <h3 className="text-xs font-semibold text-white mb-2">Quick Add</h3>
+        <div className="grid grid-cols-1 gap-2">
           {quickTextTypes.map((textType) => {
             const Icon = textType.icon;
             return (
               <button
                 key={textType.name}
                 onClick={() => handleQuickAdd(textType)}
-                className="w-full p-3 bg-gray-800 rounded-lg border border-gray-600 hover:border-indigo-500 hover:bg-gray-700 transition-all duration-200 group text-left"
-                title={textType.description}
+                className="flex items-center space-x-2 p-2 rounded text-left transition-colors hover:bg-gray-700 group"
+                style={{ backgroundColor: '#003a63' }}
               >
-                <div className="flex items-center space-x-3">
-                  <Icon className="w-5 h-5 text-indigo-400" />
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-white group-hover:text-indigo-300">
-                      {textType.name}
-                    </div>
-                    <div className="text-xs text-gray-400 truncate">
-                      {textType.content}
-                    </div>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {textType.fontSize}px
-                  </div>
+                <Icon className="w-3.5 h-3.5 text-gray-400 group-hover:text-white" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-white">{textType.name}</div>
+                  <div className="text-xs text-gray-400 truncate">{textType.description}</div>
                 </div>
               </button>
             );
@@ -306,259 +376,225 @@ export function TextTab({ onAddElement }: TextTabProps) {
         </div>
       </div>
 
-      {/* Font Controls */}
-      <div className="mb-8">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center">
-          <Type className="w-4 h-4 mr-2 text-blue-400" />
-          📝 Font Controls
-        </h3>
-        
-        {/* Font Family */}
-        <div className="mb-4">
-          <label className="block text-xs font-medium text-gray-300 mb-2">Font Family</label>
-          <select
-            value={selectedFont.name}
-            onChange={(e) => setSelectedFont(fontFamilies.find(f => f.name === e.target.value) || fontFamilies[0])}
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-indigo-500"
+      {/* Custom Text Input */}
+      <div>
+        <h3 className="text-xs font-semibold text-white mb-2">Custom Text</h3>
+        <div className="space-y-2">
+          <textarea
+            value={customText}
+            onChange={(e) => setCustomText(e.target.value)}
+            placeholder="Enter your text..."
+            className="w-full p-2 text-xs border rounded resize-none"
+            style={{ 
+              backgroundColor: '#003a63', 
+              borderColor: '#004080',
+              color: 'white',
+              minHeight: '60px'
+            }}
+            rows={3}
+          />
+          <button
+            onClick={handleCustomTextAdd}
+            className="w-full px-3 py-2 rounded text-xs font-medium text-white transition-colors hover:opacity-80"
+            style={{ backgroundColor: '#ff4940' }}
           >
-            {fontFamilies.map((font) => (
-              <option key={font.name} value={font.name}>{font.name}</option>
-            ))}
-          </select>
+            Add Text
+          </button>
         </div>
+      </div>
 
-        {/* Font Size */}
-        <div className="mb-4">
-          <label className="block text-xs font-medium text-gray-300 mb-2">Font Size</label>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setFontSize(Math.max(8, fontSize - 2))}
-              className="p-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+      {/* Font Settings */}
+      <div>
+        <h3 className="text-xs font-semibold text-white mb-2">Font Settings</h3>
+        <div className="space-y-2">
+          {/* Font Family */}
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Font Family</label>
+            <select
+              value={selectedFont}
+              onChange={(e) => handleFontFamilyChange(e.target.value)}
+              className="w-full p-2 text-xs border rounded"
+              style={{ 
+                backgroundColor: '#003a63', 
+                borderColor: '#004080',
+                color: 'white'
+              }}
             >
-              <Minus className="w-4 h-4 text-gray-300" />
-            </button>
-            <input
-              type="number"
-              value={fontSize}
-              onChange={(e) => setFontSize(Math.max(8, Math.min(200, parseInt(e.target.value) || 18)))}
-              className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm text-center focus:outline-none focus:border-indigo-500"
-              min="8"
-              max="200"
-            />
-            <button
-              onClick={() => setFontSize(Math.min(200, fontSize + 2))}
-              className="p-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+              {fontFamilies.map((font) => (
+                <option key={font.value} value={font.value}>
+                  {font.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Font Size */}
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Font Size</label>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => handleFontSizeChange(Math.max(8, fontSize - 2))}
+                className="p-1 rounded transition-colors"
+                style={{ backgroundColor: '#003a63', color: 'white' }}
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+              <input
+                type="number"
+                value={fontSize}
+                onChange={(e) => handleFontSizeChange(parseInt(e.target.value) || 18)}
+                className="flex-1 p-2 text-xs text-center border rounded"
+                style={{ 
+                  backgroundColor: '#003a63', 
+                  borderColor: '#004080',
+                  color: 'white'
+                }}
+                min="8"
+                max="200"
+              />
+              <button
+                onClick={() => handleFontSizeChange(Math.min(200, fontSize + 2))}
+                className="p-1 rounded transition-colors"
+                style={{ backgroundColor: '#003a63', color: 'white' }}
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+
+          {/* Font Weight */}
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Font Weight</label>
+            <select
+              value={selectedFontWeight}
+              onChange={(e) => handleFontWeightChange(e.target.value)}
+              className="w-full p-2 text-xs border rounded"
+              style={{ 
+                backgroundColor: '#003a63', 
+                borderColor: '#004080',
+                color: 'white'
+              }}
             >
-              <Plus className="w-4 h-4 text-gray-300" />
-            </button>
-          </div>
-        </div>
-
-        {/* Font Weight */}
-        <div className="mb-4">
-          <label className="block text-xs font-medium text-gray-300 mb-2">Font Weight</label>
-          <div className="grid grid-cols-4 gap-1">
-            {fontWeights.map((weight) => (
-              <button
-                key={weight.value}
-                onClick={() => setSelectedWeight(weight)}
-                className={`px-2 py-1 text-xs rounded transition-colors ${
-                  selectedWeight.value === weight.value
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                }`}
-                style={{ fontWeight: weight.value }}
-              >
-                {weight.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Text Transform */}
-        <div className="mb-4">
-          <label className="block text-xs font-medium text-gray-300 mb-2">Text Case</label>
-          <div className="grid grid-cols-2 gap-2">
-            {textTransforms.map((transform) => (
-              <button
-                key={transform.value}
-                onClick={() => setSelectedTransform(transform)}
-                className={`px-3 py-2 text-xs rounded transition-colors ${
-                  selectedTransform.value === transform.value
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                }`}
-                style={{ textTransform: transform.value as any }}
-              >
-                {transform.name}
-              </button>
-            ))}
+              {fontWeights.map((weight) => (
+                <option key={weight.value} value={weight.value}>
+                  {weight.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
 
       {/* Text Alignment */}
-      <div className="mb-8">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center">
-          <AlignCenter className="w-4 h-4 mr-2 text-green-400" />
-          📐 Text Alignment Tools
-        </h3>
-        <div className="grid grid-cols-4 gap-2">
+      <div>
+        <h3 className="text-xs font-semibold text-white mb-2">Alignment</h3>
+        <div className="grid grid-cols-4 gap-1">
           {[
-            { name: 'Left', value: 'left', icon: AlignLeft },
-            { name: 'Center', value: 'center', icon: AlignCenter },
-            { name: 'Right', value: 'right', icon: AlignRight },
-            { name: 'Justify', value: 'justify', icon: AlignJustify },
-          ].map((align) => {
-            const Icon = align.icon;
-            return (
-              <button
-                key={align.value}
-                onClick={() => setTextAlign(align.value)}
-                className={`p-3 rounded-lg transition-colors flex items-center justify-center ${
-                  textAlign === align.value
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                }`}
-                title={`Align ${align.name}`}
-              >
-                <Icon className="w-4 h-4" />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Text Styles & Effects */}
-      <div className="mb-8">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center">
-          <Sparkles className="w-4 h-4 mr-2 text-purple-400" />
-          🎨 Text Styles & ✨ Effects
-        </h3>
-        <div className="space-y-2 max-h-64 overflow-y-auto">
-          {textStyles.map((style) => (
+            { value: 'left', icon: AlignLeft },
+            { value: 'center', icon: AlignCenter },
+            { value: 'right', icon: AlignRight },
+            { value: 'justify', icon: AlignJustify }
+          ].map(({ value, icon: Icon }) => (
             <button
-              key={style.value}
-              onClick={() => setSelectedStyle(style)}
-              className={`w-full p-3 rounded-lg border transition-all duration-200 text-left ${
-                selectedStyle.value === style.value
-                  ? 'bg-purple-600 border-purple-500 text-white'
-                  : 'bg-gray-800 border-gray-600 text-gray-300 hover:border-purple-500 hover:bg-gray-700'
+              key={value}
+              onClick={() => handleTextAlignChange(value)}
+              className={`p-2 rounded transition-colors ${
+                textAlign === value ? 'text-white' : 'text-gray-400 hover:text-white'
               }`}
+              style={{ 
+                backgroundColor: textAlign === value ? '#ff4940' : '#003a63'
+              }}
             >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium">{style.name}</span>
-                {selectedStyle.value === style.value && (
-                  <Circle className="w-3 h-3 fill-current" />
-                )}
-              </div>
-              <div className="text-xs text-gray-400">{style.description}</div>
-              <div 
-                className="text-xs mt-2 p-2 bg-gray-900 rounded"
-                style={style.style}
-              >
-                Preview Text
-              </div>
+              <Icon className="w-3.5 h-3.5" />
             </button>
           ))}
         </div>
       </div>
 
-      {/* Color Selector */}
-      <div className="mb-8">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center">
-          <Palette className="w-4 h-4 mr-2 text-pink-400" />
-          Text Color
-        </h3>
-        <div className="grid grid-cols-5 gap-2">
+      {/* Text Transform */}
+      <div>
+        <h3 className="text-xs font-semibold text-white mb-2">Text Transform</h3>
+        <div className="grid grid-cols-2 gap-1">
+          {textTransforms.map((transform) => (
+            <button
+              key={transform.value}
+              onClick={() => handleTextTransformChange(transform.value)}
+              className={`p-2 rounded text-xs transition-colors ${
+                selectedTextTransform === transform.value ? 'text-white' : 'text-gray-400 hover:text-white'
+              }`}
+              style={{ 
+                backgroundColor: selectedTextTransform === transform.value ? '#ff4940' : '#003a63'
+              }}
+            >
+              {transform.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Color Palette */}
+      <div>
+        <h3 className="text-xs font-semibold text-white mb-2">Color</h3>
+        <div className="grid grid-cols-5 gap-1">
           {brandColors.map((color) => (
             <button
               key={color}
-              onClick={() => setSelectedColor(color)}
-              className={`w-10 h-10 rounded-lg border-2 transition-all duration-200 ${
-                selectedColor === color 
-                  ? 'border-white scale-110 shadow-lg' 
-                  : 'border-gray-600 hover:border-gray-400'
+              onClick={() => handleColorChange(color)}
+              className={`w-8 h-8 rounded border-2 transition-all ${
+                selectedColor === color ? 'border-white' : 'border-gray-600'
               }`}
               style={{ backgroundColor: color }}
               title={color}
             />
           ))}
         </div>
-        <div className="mt-3 p-3 bg-gray-800 rounded-lg">
-          <div className="text-xs text-gray-400 mb-1">Selected Color</div>
-          <div className="flex items-center space-x-2">
-            <div 
-              className="w-4 h-4 rounded border border-gray-600"
-              style={{ backgroundColor: selectedColor }}
-            />
-            <span className="text-sm text-white font-mono">{selectedColor}</span>
-          </div>
+        <input
+          type="color"
+          value={selectedColor}
+          onChange={(e) => handleColorChange(e.target.value)}
+          className="w-full h-8 rounded border-2 mt-2"
+          style={{ borderColor: '#004080' }}
+        />
+      </div>
+
+      {/* Text Effects */}
+      <div>
+        <h3 className="text-xs font-semibold text-white mb-2">Text Effects</h3>
+        <div className="grid grid-cols-2 gap-1">
+          {textStyles.map((style) => (
+            <button
+              key={style.value}
+              onClick={() => handleTextStyleApply(style)}
+              className={`p-2 rounded text-xs transition-colors text-left ${
+                selectedStyle === style.value ? 'text-white' : 'text-gray-400 hover:text-white'
+              }`}
+              style={{ 
+                backgroundColor: selectedStyle === style.value ? '#ff4940' : '#003a63'
+              }}
+              title={style.description}
+            >
+              {style.name}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Live Preview */}
-      <div className="mb-8">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center">
-          <Layers className="w-4 h-4 mr-2 text-cyan-400" />
-          Live Preview
-        </h3>
-        <div className="p-4 bg-gray-800 rounded-lg border border-gray-600">
-          <div 
-            className="text-center"
-            style={{
-              fontSize: `${fontSize}px`,
-              fontWeight: selectedWeight.value,
-              color: selectedColor,
-              fontFamily: selectedFont.value,
-              textAlign: textAlign as any,
-              textTransform: selectedTransform.value as any,
-              ...selectedStyle.style,
+      {/* Delete Text Button */}
+      {isTextSelected && selectedElementObj && (
+        <div>
+          <button
+            onClick={() => {
+              if (selectedElementObj) {
+                removeElement(selectedElementObj.id);
+              }
             }}
+            className="w-full px-3 py-2 rounded text-xs font-medium text-white transition-colors hover:opacity-80"
+            style={{ backgroundColor: '#ef4444' }}
           >
-            Preview Text
-          </div>
+            Delete Text
+          </button>
         </div>
-      </div>
-
-      {/* Add Custom Text Button */}
-      <div className="mb-6">
-        <button
-          onClick={handleCustomTextAdd}
-          className="w-full px-4 py-3 rounded-lg text-white font-medium transition-all duration-200 hover:opacity-90 flex items-center justify-center space-x-2"
-          style={{ backgroundColor: '#ff4940' }}
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Custom Text</span>
-        </button>
-      </div>
-
-      {/* Usage Tips */}
-      <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <h4 className="text-sm font-medium text-white mb-2">💡 Text Tips</h4>
-        <ul className="text-xs text-gray-400 space-y-1">
-          <li>• Text auto-wraps to fit container</li>
-          <li>• Double-click text to edit content</li>
-          <li>• <strong className="text-yellow-400">Highlight text to format it!</strong></li>
-          <li>• Use Ctrl+B, Ctrl+I, Ctrl+U for shortcuts</li>
-          <li>• Use Quick Add for common text types</li>
-          <li>• Combine styles for unique effects</li>
-          <li>• Preview shows your current settings</li>
-        </ul>
-        
-        {/* Rich Text Demo */}
-        <div className="mt-3 p-3 bg-gray-900 rounded border border-gray-600">
-          <div className="text-xs text-gray-300 mb-2">Rich Text Example:</div>
-          <div className="text-sm" style={{ color: '#ffffff' }}>
-            <span style={{ fontWeight: 'bold', color: '#ff4940' }}>Bold Red</span>{' '}
-            <span style={{ fontStyle: 'italic', color: '#10b981' }}>Italic Green</span>{' '}
-            <span style={{ textDecoration: 'underline', color: '#6366f1' }}>Underlined Blue</span>
-          </div>
-          <div className="text-xs text-gray-500 mt-1">
-            ↑ Select text in editing mode to apply different styles
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 } 

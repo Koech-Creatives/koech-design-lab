@@ -204,6 +204,20 @@ export function LoginPage({ onSwitchToSignup }: LoginPageProps) {
               </button>
             </p>
           </div>
+
+          {/* Legal Links */}
+          <div className="mt-4 text-center">
+            <p className="text-gray-500 text-xs">
+              By using our service, you agree to our{' '}
+              <a href="#" className="text-red-400 hover:text-red-300 underline">
+                Terms of Service
+              </a>{' '}
+              and{' '}
+              <a href="#" className="text-red-400 hover:text-red-300 underline">
+                Privacy Policy
+              </a>
+            </p>
+          </div>
         </div>
 
         {/* Footer */}

@@ -15,74 +15,74 @@ export function ToolsPanel() {
   const tools: Tool[] = [
     {
       id: 'selection',
-      name: 'Selection Tool',
-      icon: <img src="/selection-tool.svg" alt="Selection" className="w-5 h-5" />,
+      name: 'Selection',
+      icon: <img src="/selection-tool.svg" alt="Selection" className="w-3.5 h-3.5" />,
       cursor: 'url(/selection-tool.svg) 2 2, auto',
       hotkey: 'V'
     },
     {
       id: 'direct-selection',
-      name: 'Direct Selection Tool',
-      icon: <img src="/direct-selection-tool.svg" alt="Direct Selection" className="w-5 h-5" />,
+      name: 'Direct',
+      icon: <img src="/direct-selection-tool.svg" alt="Direct Selection" className="w-3.5 h-3.5" />,
       cursor: 'url(/direct-selection-tool.svg) 2 2, auto',
       hotkey: 'A'
     },
     {
       id: 'hand',
-      name: 'Hand Tool',
-      icon: <Hand className="w-5 h-5" />,
+      name: 'Hand',
+      icon: <Hand className="w-3.5 h-3.5" />,
       cursor: 'grab',
       hotkey: 'H'
     },
     {
       id: 'color-picker',
-      name: 'Color Picker',
-      icon: <Pipette className="w-5 h-5" />,
+      name: 'Picker',
+      icon: <Pipette className="w-3.5 h-3.5" />,
       cursor: 'crosshair',
       hotkey: 'I'
     },
     {
       id: 'text',
-      name: 'Text Tool',
-      icon: <Type className="w-5 h-5" />,
+      name: 'Text',
+      icon: <Type className="w-3.5 h-3.5" />,
       cursor: 'text',
       hotkey: 'T'
     },
     {
       id: 'line',
-      name: 'Line Tool',
-      icon: <Minus className="w-5 h-5" />,
+      name: 'Line',
+      icon: <Minus className="w-3.5 h-3.5" />,
       cursor: 'crosshair',
       hotkey: 'L'
     },
     {
       id: 'stroke',
-      name: 'Stroke Tool',
-      icon: <PaintBucket className="w-5 h-5" />,
+      name: 'Stroke',
+      icon: <PaintBucket className="w-3.5 h-3.5" />,
       cursor: 'crosshair',
       hotkey: 'S'
     },
     {
       id: 'page',
-      name: 'Page Tool',
-      icon: <FilePlus className="w-5 h-5" />,
+      name: 'Page',
+      icon: <FilePlus className="w-3.5 h-3.5" />,
       cursor: 'pointer',
       hotkey: 'P'
     }
   ];
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-white">Tools</h2>
+    <div className="p-3 space-y-3">
+      <h2 className="text-xs font-semibold text-white">Tools</h2>
       
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-1">
         {tools.map((tool) => (
           <button
             key={tool.id}
             onClick={() => setSelectedTool(tool.id)}
-            className={`p-3 rounded-lg transition-all duration-200 flex flex-col items-center space-y-1 group ${
+            className={`p-2 rounded transition-all duration-200 flex flex-col items-center space-y-1 group ${
               selectedTool === tool.id
-                ? 'text-white shadow-lg'
+                ? 'text-white shadow-md'
                 : 'text-gray-400 hover:text-white'
             }`}
             style={selectedTool === tool.id ? { backgroundColor: '#ff4940' } : { backgroundColor: '#003a63' }}
@@ -108,15 +108,12 @@ export function ToolsPanel() {
       </div>
 
       {/* Tool Info */}
-      <div className="p-3 rounded-lg" style={{ backgroundColor: '#003a63' }}>
-        <div className="text-xs text-gray-300">
+      <div className="p-2 rounded text-xs" style={{ backgroundColor: '#003a63' }}>
+        <div className="text-gray-300">
           <span className="font-medium">Active:</span> {tools.find(t => t.id === selectedTool)?.name || 'None'}
         </div>
-        <div className="text-xs text-gray-400 mt-1">
-          Hotkey: <span className="font-mono text-white">{tools.find(t => t.id === selectedTool)?.hotkey}</span>
-        </div>
-        <div className="text-xs text-gray-400 mt-1">
-          Click or use keyboard shortcuts to switch
+        <div className="text-gray-400 mt-1">
+          <span className="font-mono text-white">{tools.find(t => t.id === selectedTool)?.hotkey}</span> key
         </div>
       </div>
     </div>

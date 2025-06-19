@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 
 interface Page {
   id: string;
@@ -51,7 +51,7 @@ export function PagesProvider({ children }: { children: React.ReactNode }) {
   ]);
   const [currentPageId, setCurrentPageId] = useState('page-1');
 
-  const addPage = () => {
+  const addPage = useCallback(() => {
     const newPageId = `page-${pages.length + 1}`;
     const newPage: Page = {
       id: newPageId,
@@ -60,9 +60,9 @@ export function PagesProvider({ children }: { children: React.ReactNode }) {
     };
     setPages(prev => [...prev, newPage]);
     setCurrentPageId(newPageId);
-  };
+  }, [pages.length]);
 
-  const removePage = (pageId: string) => {
+  const removePage = useCallback((pageId: string) => {
     if (pages.length <= 1) return; // Don't allow removing the last page
     
     setPages(prev => prev.filter(p => p.id !== pageId));
@@ -74,17 +74,17 @@ export function PagesProvider({ children }: { children: React.ReactNode }) {
         setCurrentPageId(remainingPages[0].id);
       }
     }
-  };
+  }, [pages, currentPageId]);
 
-  const setCurrentPage = (pageId: string) => {
+  const setCurrentPage = useCallback((pageId: string) => {
     setCurrentPageId(pageId);
-  };
+  }, []);
 
-  const getCurrentPage = () => {
+  const getCurrentPage = useCallback(() => {
     return pages.find(page => page.id === currentPageId);
-  };
+  }, [pages, currentPageId]);
 
-  const canAddPages = (platform: string, format: any): boolean => {
+  const canAddPages = useCallback((platform: string, format: any): boolean => {
     const support = carouselSupport[platform as keyof typeof carouselSupport];
     if (!support) return false;
     
@@ -94,25 +94,25 @@ export function PagesProvider({ children }: { children: React.ReactNode }) {
     
     // Check if we haven't reached the maximum pages
     return pages.length < support.maxPages;
-  };
+  }, [pages.length]);
 
-  const getMaxPages = (platform: string): number => {
+  const getMaxPages = useCallback((platform: string): number => {
     const support = carouselSupport[platform as keyof typeof carouselSupport];
     return support?.maxPages || 1;
-  };
+  }, []);
 
-  const updatePageElements = (pageId: string, elements: any[]) => {
+  const updatePageElements = useCallback((pageId: string, elements: any[]) => {
     setPages(prev => prev.map(page => 
       page.id === pageId 
         ? { ...page, elements: [...elements] }
         : page
     ));
-  };
+  }, []);
 
-  const getCurrentPageElements = () => {
-    const currentPage = getCurrentPage();
+  const getCurrentPageElements = useCallback(() => {
+    const currentPage = pages.find(page => page.id === currentPageId);
     return currentPage?.elements || [];
-  };
+  }, [pages, currentPageId]);
 
   const value: PagesContextType = {
     pages,
