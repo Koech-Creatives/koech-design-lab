@@ -220,21 +220,46 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
       const file = files[0];
       
       if (file.type.startsWith('image/')) {
-        const imageUrl = URL.createObjectURL(file);
-        const rect = canvasRef.current?.getBoundingClientRect();
-        if (rect) {
-          const x = (e.clientX - rect.left) / zoomLevel - 100;
-          const y = (e.clientY - rect.top) / zoomLevel - 75;
-          
-          addElement({
-            type: 'image',
-            x: Math.max(0, x),
-            y: Math.max(0, y),
-            width: 200,
-            height: 150,
-            src: imageUrl,
-            alt: file.name,
-          });
+        if (file.type === 'image/svg+xml') {
+          // Handle SVG files
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const svgContent = event.target?.result as string;
+            const rect = canvasRef.current?.getBoundingClientRect();
+            if (rect) {
+              const x = (e.clientX - rect.left) / zoomLevel - 75;
+              const y = (e.clientY - rect.top) / zoomLevel - 75;
+              
+              addElement({
+                type: 'svg',
+                x: Math.max(0, x),
+                y: Math.max(0, y),
+                width: 150,
+                height: 150,
+                content: svgContent,
+                alt: file.name,
+              });
+            }
+          };
+          reader.readAsText(file);
+        } else {
+          // Handle regular image files
+          const imageUrl = URL.createObjectURL(file);
+          const rect = canvasRef.current?.getBoundingClientRect();
+          if (rect) {
+            const x = (e.clientX - rect.left) / zoomLevel - 100;
+            const y = (e.clientY - rect.top) / zoomLevel - 75;
+            
+            addElement({
+              type: 'image',
+              x: Math.max(0, x),
+              y: Math.max(0, y),
+              width: 200,
+              height: 150,
+              src: imageUrl,
+              alt: file.name,
+            });
+          }
         }
       }
     } else if (elementType) {

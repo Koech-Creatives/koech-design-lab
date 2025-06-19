@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Type, 
   Image, 
@@ -20,7 +20,9 @@ import {
   ExternalLink,
   Send,
   ChevronRight,
-  X
+  X,
+  Upload,
+  FileImage
 } from 'lucide-react';
 import { IconLibrary } from './IconLibrary';
 import { ShapesLibrary } from './ShapesLibrary';
@@ -371,6 +373,8 @@ function EmojiModal({ isOpen, onClose, onSelectEmoji }: {
 export function ElementsPanel({ onAddElement }: ElementsPanelProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showEmojiModal, setShowEmojiModal] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const svgInputRef = useRef<HTMLInputElement>(null);
 
   const handleElementAdd = (elementData: any) => {
     if (onAddElement) {
@@ -383,6 +387,70 @@ export function ElementsPanel({ onAddElement }: ElementsPanelProps) {
         ...elementData
       };
       onAddElement(baseElement);
+    }
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const imageUrl = URL.createObjectURL(file);
+      handleElementAdd({
+        type: 'image',
+        src: imageUrl,
+        width: 300,
+        height: 200,
+        alt: file.name
+      });
+      
+      // Show success notification
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-20 right-6 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+      notification.textContent = 'Image added to canvas!';
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        if (notification.parentNode) {
+          document.body.removeChild(notification);
+        }
+      }, 3000);
+    }
+    // Reset the input
+    if (event.target) {
+      event.target.value = '';
+    }
+  };
+
+  const handleSvgUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === 'image/svg+xml') {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const svgContent = e.target?.result as string;
+        handleElementAdd({
+          type: 'svg',
+          content: svgContent,
+          width: 150,
+          height: 150,
+          alt: file.name
+        });
+        
+        // Show success notification
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-20 right-6 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        notification.textContent = 'SVG added to canvas!';
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          if (notification.parentNode) {
+            document.body.removeChild(notification);
+          }
+        }, 3000);
+      };
+      reader.readAsText(file);
+    }
+    // Reset the input
+    if (event.target) {
+      event.target.value = '';
     }
   };
 
@@ -401,20 +469,58 @@ export function ElementsPanel({ onAddElement }: ElementsPanelProps) {
 
   return (
     <div className="p-3 space-y-4">
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-2 top-2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-6 pr-3 py-2 text-sm border rounded"
-          style={{
-            backgroundColor: '#003a63',
-            borderColor: '#004080',
-            color: 'white'
-          }}
-        />
+      {/* File Upload Section */}
+      <div className="space-y-2">
+        <h3 className="text-xs font-semibold text-white mb-2 flex items-center">
+          <Upload className="w-3.5 h-3.5 mr-1.5" />
+          Add Files
+        </h3>
+        
+        <div className="grid grid-cols-2 gap-2">
+          {/* Upload Image Button */}
+          <label className="block">
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => imageInputRef.current?.click()}
+              className="w-full p-3 rounded-lg text-white transition-all duration-200 hover:opacity-90 flex flex-col items-center space-y-1"
+              style={{ backgroundColor: '#ff4940' }}
+            >
+              <FileImage className="w-5 h-5" />
+              <span className="text-xs font-medium">Add Image</span>
+              <span className="text-xs opacity-75">JPG, PNG, GIF</span>
+            </button>
+          </label>
+          
+          {/* Upload SVG Button */}
+          <label className="block">
+            <input
+              ref={svgInputRef}
+              type="file"
+              accept=".svg,image/svg+xml"
+              onChange={handleSvgUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => svgInputRef.current?.click()}
+              className="w-full p-3 rounded-lg text-white transition-all duration-200 hover:opacity-90 flex flex-col items-center space-y-1"
+              style={{ backgroundColor: '#6366f1' }}
+            >
+              <Star className="w-5 h-5" />
+              <span className="text-xs font-medium">Add SVG</span>
+              <span className="text-xs opacity-75">Vector files</span>
+            </button>
+          </label>
+        </div>
+        
+        <div className="text-xs text-gray-400 text-center mt-2">
+          💡 Drag & drop files directly onto the canvas
+        </div>
       </div>
 
       {/* Categories with 2-row displays */}
@@ -537,8 +643,6 @@ export function ElementsPanel({ onAddElement }: ElementsPanelProps) {
             ))}
           </div>
         </div>
-
-   
       </div>
 
       {/* 3D Emoji Modal */}

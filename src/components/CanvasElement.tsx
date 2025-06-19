@@ -873,6 +873,19 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
           />
         );
         
+      case 'svg':
+        return (
+          <div
+            className="w-full h-full flex items-center justify-center"
+            style={{ 
+              borderRadius: `${element.borderRadius || 0}px`,
+              border: element.borderColor ? `2px solid ${element.borderColor}` : 'none',
+              overflow: 'hidden'
+            }}
+            dangerouslySetInnerHTML={{ __html: element.content || '<svg><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" fill="#666">SVG</text></svg>' }}
+          />
+        );
+        
       case 'icon':
         return (
           <div
