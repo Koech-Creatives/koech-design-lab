@@ -14,6 +14,7 @@ import { ToolsProvider } from './contexts/ToolsContext';
 import { PagesProvider } from './contexts/PagesContext';
 import { BackgroundProvider } from './contexts/BackgroundContext';
 import { ProjectProvider } from './contexts/ProjectContext';
+import { GuestProvider } from './contexts/GuestContext';
 import { AuthWrapper } from './components/AuthWrapper';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -129,9 +130,11 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <AuthWrapper>
-          <AppContent />
-        </AuthWrapper>
+        <GuestProvider>
+          <AuthWrapper>
+            <AppContent />
+          </AuthWrapper>
+        </GuestProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

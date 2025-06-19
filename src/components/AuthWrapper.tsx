@@ -10,6 +10,7 @@ interface AuthWrapperProps {
 
 export function AuthWrapper({ children }: AuthWrapperProps) {
   const [showLogin, setShowLogin] = useState(true);
+  const [guestMode, setGuestMode] = useState(false);
   
   console.log('🔍 AuthWrapper: Rendering, attempting to access auth context');
   
@@ -22,7 +23,8 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
       isLoading: authContext?.isLoading,
       hasUser: !!authContext?.user,
       userEmail: authContext?.user?.email,
-      userId: authContext?.user?.id
+      userId: authContext?.user?.id,
+      guestMode
     });
   } catch (error) {
     console.error('🔴 AuthWrapper: Error accessing auth context:', error);
@@ -52,9 +54,10 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
   console.log('🔍 AuthWrapper: Authentication decision:', {
     isLoading,
     isAuthenticated,
+    guestMode,
     willShowLoading: isLoading,
-    willShowAuth: !isAuthenticated && !isLoading,
-    willShowApp: isAuthenticated && !isLoading
+    willShowAuth: !isAuthenticated && !isLoading && !guestMode,
+    willShowApp: (isAuthenticated || guestMode) && !isLoading
   });
 
   // Show loading spinner while checking authentication
@@ -79,27 +82,70 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
     );
   }
 
-  // Show login/signup if not authenticated
-  if (!isAuthenticated) {
+  // Show login/signup if not authenticated and not in guest mode
+  if (!isAuthenticated && !guestMode) {
     console.log('🔐 AuthWrapper: User not authenticated, showing auth pages. showLogin:', showLogin);
     return (
       <>
-        {showLogin ? (
-          <LoginPage onSwitchToSignup={() => setShowLogin(false)} />
-        ) : (
-          <SignupPageBrandAware onSwitchToLogin={() => setShowLogin(true)} />
-        )}
+        <div className="relative">
+          {showLogin ? (
+            <div>
+              <LoginPage onSwitchToSignup={() => setShowLogin(false)} />
+              {/* Guest Access Banner */}
+              <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+                <div className="bg-gray-800 border border-gray-600 rounded-lg p-4 max-w-md text-center">
+                  <p className="text-gray-300 text-sm mb-3">
+                    Want to try Frames without signing up?
+                  </p>
+                  <button
+                    onClick={() => setGuestMode(true)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Continue as Guest
+                  </button>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Note: You'll need to sign up to export or share your designs
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <SignupPageBrandAware onSwitchToLogin={() => setShowLogin(true)} />
+              {/* Guest Access Banner */}
+              <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+                <div className="bg-gray-800 border border-gray-600 rounded-lg p-4 max-w-md text-center">
+                  <p className="text-gray-300 text-sm mb-3">
+                    Want to try Frames without signing up?
+                  </p>
+                  <button
+                    onClick={() => setGuestMode(true)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Continue as Guest
+                  </button>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Note: You'll need to sign up to export or share your designs
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
         {/* Debug Panel */}
         <DebugPanel />
       </>
     );
   }
 
-  // Show the main app if authenticated
-  console.log('✅ AuthWrapper: User authenticated, showing main app');
+  // Show the main app if authenticated or in guest mode
+  console.log('✅ AuthWrapper: User authenticated or in guest mode, showing main app');
   return (
     <>
-      {children}
+      {/* Pass guest mode status to children via context */}
+      <div data-guest-mode={guestMode ? 'true' : 'false'}>
+        {children}
+      </div>
       {/* Debug Panel */}
       <DebugPanel />
     </>

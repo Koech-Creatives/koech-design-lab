@@ -5,6 +5,7 @@ import { useBrand } from '../contexts/BrandContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useBackground } from '../contexts/BackgroundContext';
+import { useGuest } from '../contexts/GuestContext';
 import { SettingsModal } from './SettingsModal';
 import html2canvas from 'html2canvas';
 
@@ -31,8 +32,9 @@ export function Header({
   const { elements, undo, redo, canUndo, canRedo } = useCanvas();
   const { saveBrandToSupabase } = useBrand();
   const { saveProject } = useProject();
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const { canvasBackgroundColor } = useBackground();
+  const { promptForAuth } = useGuest();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoMenuOpen, setLogoMenuOpen] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
@@ -79,6 +81,13 @@ export function Header({
     // Check if canvas is empty (no elements)
     if (elements.length === 0) {
       showNotification('Cannot export empty canvas. Add some elements first!', '#dc2626');
+      setExportMenuOpen(false);
+      return;
+    }
+
+    // Require authentication for export
+    if (!isAuthenticated) {
+      promptForAuth('export your design', () => exportCanvas(format));
       setExportMenuOpen(false);
       return;
     }
@@ -184,6 +193,12 @@ export function Header({
   };
 
   const handlePost = () => {
+    // Require authentication for posting
+    if (!isAuthenticated) {
+      promptForAuth('post to social media');
+      return;
+    }
+    
     // Coming soon functionality
     showNotification('Post feature coming soon!', '#003a63');
   };
@@ -267,7 +282,15 @@ export function Header({
               />
               <Palette className="w-6 h-6 hidden" style={{ color: '#ff4940' }} />
               <div className="flex items-center space-x-1.5">
-                <h1 className="text-xs font-bold text-white opacity-60">by Koech Creatives</h1>
+                <a 
+                  href="https://koech-labs.onrender.com/" 
+                  className="text-xs font-bold text-white opacity-60 hover:opacity-80 transition-opacity"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Back to Koech Labs"
+                >
+                  Frames by Koech Labs
+                </a>
                 <span 
                   className="px-1.5 py-0.5 text-xs font-medium rounded-full"
                   style={{ 
@@ -282,6 +305,17 @@ export function Header({
             
             {logoMenuOpen && (
               <div className="absolute left-0 top-full mt-1 w-48 rounded-md shadow-lg py-1 z-50" style={{ backgroundColor: '#002e51', border: '1px solid #004080' }}>
+                <a
+                  href="https://koech-labs.onrender.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white flex items-center space-x-2"
+                  onClick={() => setLogoMenuOpen(false)}
+                >
+                  <Share className="w-3.5 h-3.5" />
+                  <span>← Back to Koech Labs</span>
+                </a>
+                <div className="border-t border-gray-600 my-1"></div>
                 <button
                   onClick={() => {
                     onOpenProjects();
@@ -359,8 +393,14 @@ export function Header({
           ))}
         </div>
 
-        {/* Right - Undo/Redo, Post, Export */}
+        {/* Right - Guest Badge, Undo/Redo, Post, Export */}
         <div className="flex items-center space-x-1.5">
+          {/* Guest Mode Indicator */}
+          {!isAuthenticated && (
+            <div className="px-2 py-1 rounded-full text-xs font-medium bg-blue-600 text-white">
+              Guest Mode
+            </div>
+          )}
           <button 
             onClick={undo}
             disabled={!canUndo}
@@ -464,7 +504,13 @@ export function Header({
             />
             <Palette className="w-6 h-6 hidden" style={{ color: '#ff4940' }} />
             <div className="flex items-center space-x-1">
-              <h1 className="text-xs font-bold text-white opacity-60">by Koech</h1>
+              <a 
+                href="https://koech-labs.onrender.com/" 
+                className="text-xs font-bold text-white opacity-60 hover:opacity-80 transition-opacity"
+                title="Back to Koech Labs"
+              >
+                Frames by Koech Labs
+              </a>
               <span 
                 className="px-1 py-0.5 text-xs font-medium rounded-full"
                 style={{ 
@@ -479,6 +525,17 @@ export function Header({
           
           {logoMenuOpen && (
             <div className="absolute left-0 top-full mt-1 w-48 rounded-md shadow-lg py-1 z-50" style={{ backgroundColor: '#002e51', border: '1px solid #004080' }}>
+              <a
+                href="https://koechlabs.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white flex items-center space-x-2"
+                onClick={() => setLogoMenuOpen(false)}
+              >
+                <Share className="w-3.5 h-3.5" />
+                <span>← Back to Koech Labs</span>
+              </a>
+              <div className="border-t border-gray-600 my-1"></div>
               <button
                 onClick={() => {
                   onOpenProjects();

@@ -310,7 +310,7 @@ export function SignupPageBrandAware({ onSwitchToLogin }: SignupPageProps) {
             <UserPlus className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-3xl font-bold text-white">Create Account</h2>
-          <p className="mt-2 text-gray-400">Join Koech Design Lab today</p>
+          <p className="mt-2 text-gray-400">Join Koech Labs today</p>
         </div>
 
         {/* Progress Steps */}

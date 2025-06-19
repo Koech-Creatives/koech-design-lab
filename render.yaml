@@ -1,11 +1,10 @@
 services:
   - type: web
-    name: koech-canvas
+    name: koech-frames-app
     env: node
     plan: free
-    region: oregon
     buildCommand: npm install && npm run build
-    startCommand: npm start
+    startCommand: npm run start
     envVars:
       - key: NODE_ENV
         value: production
@@ -14,7 +13,11 @@ services:
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
       - key: VITE_DIRECTUS_URL
-        value: https://koech-labs.onrender.com
-    healthCheckPath: /
+        sync: false
+    domains:
+      - frames.koechlabs.com
+    healthCheck:
+      path: /
+      delaySeconds: 30
     autoDeploy: true
     branch: main 
