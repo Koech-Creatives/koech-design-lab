@@ -19,7 +19,7 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { elements, addElement, updateElement, selectElement, selectedElement, clearCanvas, removeElement, duplicateElement } = useCanvas();
   const { selectedTool, getToolCursor } = useTools();
-  const { canvasBackgroundColor } = useBackground();
+  const { canvasBackgroundColor, setCanvasBackgroundColor } = useBackground();
   const { currentPageId, updatePageElements, getCurrentPageElements } = usePages();
   
   const specs = PlatformSpecs[platform as keyof typeof PlatformSpecs] || PlatformSpecs.instagram;
@@ -407,7 +407,25 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
               
               {/* Controls - Compact */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-2">
+                  {/* Canvas Background Colors */}
+                  <div className="flex items-center space-x-1">
+                    <span className="text-xs text-gray-400">BG:</span>
+                    <div className="flex space-x-1">
+                      {['#ffffff', '#f8f9fa', '#e9ecef', '#000000'].map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => setCanvasBackgroundColor(color)}
+                          className={`w-4 h-4 rounded border hover:scale-110 transition-transform ${
+                            canvasBackgroundColor === color ? 'border-white border-2' : 'border-gray-600'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          title={`Background: ${color}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
                   <button
                     onClick={() => setShowSafeZones(!showSafeZones)}
                     className={`px-2 py-1 rounded text-xs transition-colors ${
