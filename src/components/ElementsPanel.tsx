@@ -19,7 +19,8 @@ import {
   MessageCircle,
   ExternalLink,
   Send,
-  ChevronRight
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { IconLibrary } from './IconLibrary';
 import { ShapesLibrary } from './ShapesLibrary';
@@ -127,272 +128,424 @@ const ctaElements = [
   { name: 'Click Me', icon: '👆', type: 'click', category: 'actions' }
 ];
 
-export function ElementsPanel({ onAddElement, selectedColor }: ElementsPanelProps) {
-  const [showIconLibrary, setShowIconLibrary] = useState(false);
-  const [showShapesLibrary, setShowShapesLibrary] = useState(false);
-  const [show3DEmojis, setShow3DEmojis] = useState(false);
-  const [showStockImages, setShowStockImages] = useState(false);
-  const [showCTAElements, setShowCTAElements] = useState(false);
-  const [currentColor, setCurrentColor] = useState(selectedColor || brandColors[0]);
+// Sample elements for each category (2 rows display)
+const categoryElements = {
+  icons: [
+    { name: 'Star', icon: Star, type: 'icon' },
+    { name: 'Heart', icon: Heart, type: 'icon' },
+    { name: 'Share', icon: Share, type: 'icon' },
+    { name: 'Arrow', icon: ArrowRight, type: 'icon' },
+    { name: 'Message', icon: MessageCircle, type: 'icon' },
+    { name: 'External', icon: ExternalLink, type: 'icon' },
+    { name: 'Send', icon: Send, type: 'icon' },
+    { name: 'Search', icon: Search, type: 'icon' }
+  ],
+  shapes: [
+    { name: 'Rectangle', icon: Square, type: 'rectangle' },
+    { name: 'Circle', icon: '●', type: 'circle' },
+    { name: 'Triangle', icon: '▲', type: 'triangle' },
+    { name: 'Diamond', icon: '◆', type: 'diamond' },
+    { name: 'Star', icon: '★', type: 'star' },
+    { name: 'Heart', icon: '♥', type: 'heart' },
+    { name: 'Arrow', icon: '→', type: 'arrow' },
+    { name: 'Line', icon: '─', type: 'line' }
+  ],
+  emojis: [
+    { emoji: '😀', name: 'Grinning Face' },
+    { emoji: '❤️', name: 'Red Heart' },
+    { emoji: '👍', name: 'Thumbs Up' },
+    { emoji: '🎉', name: 'Party Popper' },
+    { emoji: '🔥', name: 'Fire' },
+    { emoji: '⭐', name: 'Star' },
+    { emoji: '💡', name: 'Light Bulb' },
+    { emoji: '🚀', name: 'Rocket' }
+  ],
+  stockImages: [
+    { name: 'Business', preview: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop' },
+    { name: 'Nature', preview: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=100&h=100&fit=crop' },
+    { name: 'Technology', preview: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=100&h=100&fit=crop' },
+    { name: 'Food', preview: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=100&h=100&fit=crop' },
+    { name: 'Travel', preview: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=100&h=100&fit=crop' },
+    { name: 'Fashion', preview: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=100&h=100&fit=crop' },
+    { name: 'Sports', preview: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=100&h=100&fit=crop' },
+    { name: 'Abstract', preview: 'https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=100&h=100&fit=crop' }
+  ],
+  ctaElements: [
+    { name: 'Subscribe', icon: '📧', type: 'cta' },
+    { name: 'Buy Now', icon: '🛒', type: 'cta' },
+    { name: 'Learn More', icon: '📚', type: 'cta' },
+    { name: 'Contact', icon: '📞', type: 'cta' },
+    { name: 'Follow', icon: '👥', type: 'cta' },
+    { name: 'Download', icon: '⬇️', type: 'cta' },
+    { name: 'Sign Up', icon: '✍️', type: 'cta' },
+    { name: 'Watch', icon: '▶️', type: 'cta' }
+  ]
+};
+
+// Extended 3D emoji collection for the popup
+const all3DEmojis = [
+  { emoji: '😀', name: 'Grinning Face' },
+  { emoji: '😃', name: 'Grinning Face with Big Eyes' },
+  { emoji: '😄', name: 'Grinning Face with Smiling Eyes' },
+  { emoji: '😁', name: 'Beaming Face with Smiling Eyes' },
+  { emoji: '😊', name: 'Smiling Face with Smiling Eyes' },
+  { emoji: '😇', name: 'Smiling Face with Halo' },
+  { emoji: '🙂', name: 'Slightly Smiling Face' },
+  { emoji: '🙃', name: 'Upside-Down Face' },
+  { emoji: '😉', name: 'Winking Face' },
+  { emoji: '😌', name: 'Relieved Face' },
+  { emoji: '😍', name: 'Smiling Face with Heart-Eyes' },
+  { emoji: '🥰', name: 'Smiling Face with Hearts' },
+  { emoji: '😘', name: 'Face Blowing a Kiss' },
+  { emoji: '😗', name: 'Kissing Face' },
+  { emoji: '😙', name: 'Kissing Face with Smiling Eyes' },
+  { emoji: '😚', name: 'Kissing Face with Closed Eyes' },
+  { emoji: '🤗', name: 'Hugging Face' },
+  { emoji: '🤩', name: 'Star-Struck' },
+  { emoji: '🤔', name: 'Thinking Face' },
+  { emoji: '🤨', name: 'Face with Raised Eyebrow' },
+  { emoji: '😐', name: 'Neutral Face' },
+  { emoji: '😑', name: 'Expressionless Face' },
+  { emoji: '😶', name: 'Face Without Mouth' },
+  { emoji: '😏', name: 'Smirking Face' },
+  { emoji: '😒', name: 'Unamused Face' },
+  { emoji: '🙄', name: 'Face with Rolling Eyes' },
+  { emoji: '😬', name: 'Grimacing Face' },
+  { emoji: '🤥', name: 'Lying Face' },
+  { emoji: '😔', name: 'Pensive Face' },
+  { emoji: '😪', name: 'Sleepy Face' },
+  { emoji: '🤤', name: 'Drooling Face' },
+  { emoji: '😴', name: 'Sleeping Face' },
+  { emoji: '😷', name: 'Face with Medical Mask' },
+  { emoji: '🤒', name: 'Face with Thermometer' },
+  { emoji: '🤕', name: 'Face with Head-Bandage' },
+  { emoji: '🤢', name: 'Nauseated Face' },
+  { emoji: '🤮', name: 'Face Vomiting' },
+  { emoji: '🤧', name: 'Sneezing Face' },
+  { emoji: '🥵', name: 'Hot Face' },
+  { emoji: '🥶', name: 'Cold Face' },
+  { emoji: '🥴', name: 'Woozy Face' },
+  { emoji: '😵', name: 'Dizzy Face' },
+  { emoji: '🤯', name: 'Exploding Head' },
+  { emoji: '🤠', name: 'Cowboy Hat Face' },
+  { emoji: '🥳', name: 'Partying Face' },
+  { emoji: '😎', name: 'Smiling Face with Sunglasses' },
+  { emoji: '🤓', name: 'Nerd Face' },
+  { emoji: '🧐', name: 'Face with Monocle' },
+  { emoji: '😕', name: 'Confused Face' },
+  { emoji: '😟', name: 'Worried Face' },
+  { emoji: '🙁', name: 'Slightly Frowning Face' },
+  { emoji: '☹️', name: 'Frowning Face' },
+  { emoji: '😮', name: 'Face with Open Mouth' },
+  { emoji: '😯', name: 'Hushed Face' },
+  { emoji: '😲', name: 'Astonished Face' },
+  { emoji: '😳', name: 'Flushed Face' },
+  { emoji: '🥺', name: 'Pleading Face' },
+  { emoji: '😦', name: 'Frowning Face with Open Mouth' },
+  { emoji: '😧', name: 'Anguished Face' },
+  { emoji: '😨', name: 'Fearful Face' },
+  { emoji: '😰', name: 'Anxious Face with Sweat' },
+  { emoji: '😥', name: 'Sad but Relieved Face' },
+  { emoji: '😢', name: 'Crying Face' },
+  { emoji: '😭', name: 'Loudly Crying Face' },
+  { emoji: '😱', name: 'Face Screaming in Fear' },
+  { emoji: '😖', name: 'Confounded Face' },
+  { emoji: '😣', name: 'Persevering Face' },
+  { emoji: '😞', name: 'Disappointed Face' },
+  { emoji: '😓', name: 'Downcast Face with Sweat' },
+  { emoji: '😩', name: 'Weary Face' },
+  { emoji: '😫', name: 'Tired Face' },
+  { emoji: '🥱', name: 'Yawning Face' },
+  { emoji: '😤', name: 'Face with Steam From Nose' },
+  { emoji: '😡', name: 'Pouting Face' },
+  { emoji: '😠', name: 'Angry Face' },
+  { emoji: '🤬', name: 'Face with Symbols on Mouth' },
+  { emoji: '😈', name: 'Smiling Face with Horns' },
+  { emoji: '👿', name: 'Angry Face with Horns' },
+  { emoji: '💀', name: 'Skull' },
+  { emoji: '☠️', name: 'Skull and Crossbones' },
+  { emoji: '💩', name: 'Pile of Poo' },
+  { emoji: '🤡', name: 'Clown Face' },
+  { emoji: '👹', name: 'Ogre' },
+  { emoji: '👺', name: 'Goblin' },
+  { emoji: '👻', name: 'Ghost' },
+  { emoji: '👽', name: 'Alien' },
+  { emoji: '👾', name: 'Alien Monster' },
+  { emoji: '🤖', name: 'Robot' },
+  { emoji: '😺', name: 'Grinning Cat' },
+  { emoji: '😸', name: 'Grinning Cat with Smiling Eyes' },
+  { emoji: '😹', name: 'Cat with Tears of Joy' },
+  { emoji: '😻', name: 'Smiling Cat with Heart-Eyes' },
+  { emoji: '😼', name: 'Cat with Wry Smile' },
+  { emoji: '😽', name: 'Kissing Cat' },
+  { emoji: '🙀', name: 'Weary Cat' },
+  { emoji: '😿', name: 'Crying Cat' },
+  { emoji: '😾', name: 'Pouting Cat' },
+  { emoji: '❤️', name: 'Red Heart' },
+  { emoji: '🧡', name: 'Orange Heart' },
+  { emoji: '💛', name: 'Yellow Heart' },
+  { emoji: '💚', name: 'Green Heart' },
+  { emoji: '💙', name: 'Blue Heart' },
+  { emoji: '💜', name: 'Purple Heart' },
+  { emoji: '🖤', name: 'Black Heart' },
+  { emoji: '🤍', name: 'White Heart' },
+  { emoji: '🤎', name: 'Brown Heart' },
+  { emoji: '💔', name: 'Broken Heart' },
+  { emoji: '❣️', name: 'Heart Exclamation' },
+  { emoji: '💕', name: 'Two Hearts' },
+  { emoji: '💞', name: 'Revolving Hearts' },
+  { emoji: '💓', name: 'Beating Heart' },
+  { emoji: '💗', name: 'Growing Heart' },
+  { emoji: '💖', name: 'Sparkling Heart' },
+  { emoji: '💘', name: 'Heart with Arrow' },
+  { emoji: '💝', name: 'Heart with Ribbon' }
+];
+
+// 3D Emoji Modal Component
+function EmojiModal({ isOpen, onClose, onSelectEmoji }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectEmoji: (emoji: any) => void;
+}) {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const handleQuickAdd = (elementType: string) => {
-    const baseElement = {
-      id: Date.now().toString(),
-      x: 400, // Center position
-      y: 300, 
-      width: 200,
-      height: 100,
-      color: currentColor,
-      backgroundColor: currentColor,
-      borderColor: currentColor,
-    };
+  const filteredEmojis = all3DEmojis.filter(emoji =>
+    emoji.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emoji.emoji.includes(searchTerm)
+  );
 
-    switch (elementType) {
-      case 'text':
-        onAddElement({
-          ...baseElement,
-          type: 'text',
-          content: 'Your text here',
-          fontSize: 18,
-          fontWeight: 'normal',
-          textAlign: 'center',
-          color: '#000000',
-          fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
-          autoWrap: true,
-          height: 40,
-        });
-        break;
-      case 'image':
-        onAddElement({
-          ...baseElement,
-          type: 'image',
-          src: 'https://placehold.co/600x400?text=Image+Here',
-          alt: 'Placeholder image',
-        });
-        break;
-      case 'button':
-        onAddElement({
-          ...baseElement,
-          type: 'button',
-          content: 'Click me',
-          fontSize: 16,
-          fontWeight: 'medium',
-          textAlign: 'center',
-          borderRadius: 8,
-          padding: 12,
-          height: 48,
-        });
-        break;
-      default:
-        break;
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-900 rounded-lg p-4 w-96 max-h-96 overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-white">3D Emojis</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        
+        <div className="relative mb-3">
+          <Search className="absolute left-2 top-2 w-3.5 h-3.5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search emojis..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-8 pr-3 py-2 text-xs border rounded"
+            style={{
+              backgroundColor: '#003a63',
+              borderColor: '#004080',
+              color: 'white'
+            }}
+          />
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          <div className="grid grid-cols-6 gap-2">
+            {filteredEmojis.map((emoji) => (
+              <button
+                key={emoji.name}
+                onClick={() => {
+                  onSelectEmoji(emoji);
+                  onClose();
+                }}
+                className="p-2 rounded text-center transition-colors hover:bg-gray-700"
+                style={{ backgroundColor: '#003a63' }}
+                title={emoji.name}
+              >
+                <span className="text-lg">{emoji.emoji}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ElementsPanel({ onAddElement }: ElementsPanelProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showEmojiModal, setShowEmojiModal] = useState(false);
+
+  const handleElementAdd = (elementData: any) => {
+    if (onAddElement) {
+      const baseElement = {
+        id: Date.now().toString(),
+        x: 400, // Center position
+        y: 300, 
+        width: 200,
+        height: 100,
+        ...elementData
+      };
+      onAddElement(baseElement);
     }
   };
 
-  const handleIconSelect = (icon: any) => {
-    onAddElement({
-      id: Date.now().toString(),
-      type: 'icon',
-      x: 400,
-      y: 300,
+  const handleEmojiSelect = (emoji: any) => {
+    handleElementAdd({
+      type: 'text',
+      content: emoji.emoji,
+      fontSize: 48,
       width: 60,
       height: 60,
-      color: currentColor,
-      content: icon.content,
-      name: icon.name,
+      color: '#000000',
+      fontFamily: 'system-ui',
+      textAlign: 'center'
     });
-    setShowIconLibrary(false);
-  };
-
-  const handleShapeSelect = (shape: any) => {
-    const baseElement = {
-      id: Date.now().toString(),
-      x: 400,
-      y: 300,
-      width: 120,
-      height: 120,
-      color: currentColor,
-      backgroundColor: currentColor,
-      borderColor: currentColor,
-    };
-
-    onAddElement({
-      ...baseElement,
-      type: shape.type,
-      name: shape.name,
-      path: shape.path,
-    });
-    setShowShapesLibrary(false);
   };
 
   return (
-    <div className="w-80 bg-gray-900 border-l border-gray-700 p-6 overflow-y-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-white mb-2">Elements</h2>
-        <p className="text-sm text-gray-400">Add elements to your design</p>
+    <div className="p-3 space-y-4">
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-2 top-2 w-4 h-4 text-gray-400" />
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-6 pr-3 py-2 text-sm border rounded"
+          style={{
+            backgroundColor: '#003a63',
+            borderColor: '#004080',
+            color: 'white'
+          }}
+        />
       </div>
 
-      {/* Quick Add Section */}
-      <div className="mb-8">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center">
-          <Zap className="w-4 h-4 mr-2 text-yellow-400" />
-          Quick Add
-        </h3>
-      <div className="grid grid-cols-2 gap-3">
-          {quickElements.map((element) => {
-          const Icon = element.icon;
-          return (
-              <button
-                key={element.name}
-                onClick={() => handleQuickAdd(element.action)}
-                className="relative p-4 bg-gray-800 rounded-lg border border-gray-600 hover:border-indigo-500 hover:bg-gray-700 transition-all duration-200 group text-left"
-                title={element.description}
-              >
-                {element.popular && (
-                  <div className="absolute top-2 right-2 w-2 h-2 bg-yellow-400 rounded-full"></div>
-                )}
-                <Icon className="w-6 h-6 text-indigo-400 mb-2" />
-                <div className="text-sm font-medium text-white group-hover:text-indigo-300">
-                {element.name}
-                </div>
-                <div className="text-xs text-gray-400 mt-1">
-                  {element.description}
-            </div>
-              </button>
-          );
-        })}
-        </div>
-      </div>
-      
-      {/* Icons Library */}
-      <div className="mb-8">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center">
-          <Sparkles className="w-4 h-4 mr-2 text-purple-400" />
-          Icons Library
-        </h3>
-                  <button
-          onClick={() => setShowIconLibrary(true)}
-          className="w-full p-6 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg border border-purple-500 hover:from-purple-500 hover:to-indigo-500 transition-all duration-200 group"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-3">
-              <Heart className="w-6 h-6 text-white" />
-              <Star className="w-5 h-5 text-yellow-300" />
-              <Sparkles className="w-4 h-4 text-pink-300" />
-            </div>
-            <span className="text-xs bg-white bg-opacity-20 text-white px-2 py-1 rounded-full">
-              50+ Icons
-            </span>
-          </div>
-          <div className="text-left">
-            <div className="text-lg font-semibold text-white mb-1">
-              Professional Icons
-                </div>
-            <div className="text-sm text-purple-100">
-              Search, browse, and add icons instantly
-            </div>
-          </div>
-          <div className="mt-3 text-xs text-purple-200 flex items-center">
-            <Plus className="w-3 h-3 mr-1" />
-           With categories, search & more
-          </div>
-        </button>
-      </div>
-
-      {/* Shapes Library */}
-      <div className="mb-8">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center">
-          <ShapesIcon className="w-4 h-4 mr-2 text-blue-400" />
-          Shapes Library
-        </h3>
+      {/* Categories with 2-row displays */}
+      <div className="space-y-4">
+        {/* Icons */}
+        <div>
+          <h3 className="text-xs font-semibold text-white mb-2 flex items-center">
+            <Star className="w-3.5 h-3.5 mr-1.5" />
+            Icons
+          </h3>
+          <div className="grid grid-cols-4 gap-1">
+            {categoryElements.icons.map((icon, index) => {
+              const IconComponent = icon.icon;
+              return (
                 <button
-          onClick={() => setShowShapesLibrary(true)}
-          className="w-full p-6 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg border border-blue-500 hover:from-blue-500 hover:to-cyan-500 transition-all duration-200 group"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-3">
-              <div className="w-4 h-4 bg-white rounded-full"></div>
-              <div className="w-4 h-4 bg-white" style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}></div>
-              <div className="w-4 h-4 bg-white" style={{ transform: 'rotate(45deg)' }}></div>
-            </div>
-            <span className="text-xs bg-white bg-opacity-20 text-white px-2 py-1 rounded-full">
-              30+ Shapes
-            </span>
-          </div>
-          <div className="text-left">
-            <div className="text-lg font-semibold text-white mb-1">
-              Geometric Shapes
-            </div>
-            <div className="text-sm text-blue-100">
-              Basic to advanced shapes for any design
-            </div>
-              </div>
-          <div className="mt-3 text-xs text-blue-200 flex items-center">
-            <Plus className="w-3 h-3 mr-1" />
-            Arrows, decorative, business & more
-          </div>
-        </button>
-      </div>
-
-      {/* Color Selector */}
-      <div className="mb-6">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center">
-          <Palette className="w-4 h-4 mr-2 text-green-400" />
-          Brand Colors
-        </h3>
-        <div className="grid grid-cols-5 gap-2">
-          {brandColors.map((color) => (
-            <button
-              key={color}
-              onClick={() => setCurrentColor(color)}
-              className={`w-10 h-10 rounded-lg border-2 transition-all duration-200 ${
-                currentColor === color 
-                  ? 'border-white scale-110 shadow-lg' 
-                  : 'border-gray-600 hover:border-gray-400'
-              }`}
-              style={{ backgroundColor: color }}
-              title={color}
-            />
-          ))}
-        </div>
-        <div className="mt-3 p-3 bg-gray-800 rounded-lg">
-          <div className="text-xs text-gray-400 mb-1">Selected Color</div>
-          <div className="flex items-center space-x-2">
-            <div 
-              className="w-4 h-4 rounded border border-gray-600"
-              style={{ backgroundColor: currentColor }}
-            />
-            <span className="text-sm text-white font-mono">{currentColor}</span>
+                  key={icon.name}
+                  onClick={() => handleElementAdd({
+                    type: 'icon',
+                    iconName: icon.name,
+                    width: 60,
+                    height: 60,
+                    color: '#6366f1'
+                  })}
+                  className="p-2 rounded text-center transition-colors hover:bg-gray-700"
+                  style={{ backgroundColor: '#003a63' }}
+                  title={icon.name}
+                >
+                  <IconComponent className="w-4 h-4 mx-auto text-gray-300" />
+                </button>
+              );
+            })}
           </div>
         </div>
+
+        {/* Shapes */}
+        <div>
+          <h3 className="text-xs font-semibold text-white mb-2 flex items-center">
+            <ShapesIcon className="w-3.5 h-3.5 mr-1.5" />
+            Shapes
+          </h3>
+          <div className="grid grid-cols-4 gap-1">
+            {categoryElements.shapes.map((shape) => (
+              <button
+                key={shape.name}
+                onClick={() => handleElementAdd({
+                  type: shape.type,
+                  width: 100,
+                  height: 100,
+                  backgroundColor: '#6366f1'
+                })}
+                className="p-2 rounded text-center transition-colors hover:bg-gray-700"
+                style={{ backgroundColor: '#003a63' }}
+                title={shape.name}
+              >
+                {typeof shape.icon === 'string' ? (
+                  <span className="text-gray-300">{shape.icon}</span>
+                ) : (
+                  <shape.icon className="w-4 h-4 mx-auto text-gray-300" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 3D Emojis */}
+        <div>
+          <h3 className="text-xs font-semibold text-white mb-2 flex items-center">
+            <Smile className="w-3.5 h-3.5 mr-1.5" />
+            3D Emojis
+          </h3>
+          <div className="grid grid-cols-4 gap-1 mb-2">
+            {categoryElements.emojis.map((emoji) => (
+              <button
+                key={emoji.name}
+                onClick={() => handleEmojiSelect(emoji)}
+                className="p-2 rounded text-center transition-colors hover:bg-gray-700"
+                style={{ backgroundColor: '#003a63' }}
+                title={emoji.name}
+              >
+                <span className="text-lg">{emoji.emoji}</span>
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowEmojiModal(true)}
+            className="w-full px-3 py-2 rounded text-xs font-medium text-white transition-colors hover:opacity-80"
+            style={{ backgroundColor: '#ff4940' }}
+          >
+            View All Emojis
+          </button>
+        </div>
+
+        {/* Stock Images */}
+        <div>
+          <h3 className="text-xs font-semibold text-white mb-2 flex items-center">
+            <Camera className="w-3.5 h-3.5 mr-1.5" />
+            Stock Images
+          </h3>
+          <div className="grid grid-cols-4 gap-1">
+            {categoryElements.stockImages.map((category) => (
+              <button
+                key={category.name}
+                onClick={() => handleElementAdd({
+                  type: 'image',
+                  src: category.preview,
+                  width: 200,
+                  height: 150
+                })}
+                className="p-2 rounded text-center transition-colors hover:bg-gray-700 overflow-hidden"
+                style={{ backgroundColor: '#003a63' }}
+                title={category.name}
+              >
+                <img 
+                  src={category.preview} 
+                  alt={category.name}
+                  className="w-6 h-6 mx-auto rounded object-cover"
+                />
+                <div className="text-xs text-gray-300 mt-1 truncate">{category.name}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+   
       </div>
 
-      {/* Usage Tips */}
-      <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <h4 className="text-sm font-medium text-white mb-2">💡 Quick Tips</h4>
-        <ul className="text-xs text-gray-400 space-y-1">
-          <li>• All elements use your selected color</li>
-          <li>• Click to add, drag to position</li>
-          <li>• Use Quick Add for common elements</li>
-          <li>• Browse libraries for more options</li>
-        </ul>
-      </div>
-
-      {/* Icon Library Modal */}
-      <IconLibrary 
-        isOpen={showIconLibrary}
-        onClose={() => setShowIconLibrary(false)}
-        onSelectIcon={handleIconSelect}
-        selectedColor={currentColor}
-      />
-
-      {/* Shapes Library Modal */}
-      <ShapesLibrary 
-        isOpen={showShapesLibrary}
-        onClose={() => setShowShapesLibrary(false)}
-        onSelectShape={handleShapeSelect}
-        selectedColor={currentColor}
+      {/* 3D Emoji Modal */}
+      <EmojiModal 
+        isOpen={showEmojiModal}
+        onClose={() => setShowEmojiModal(false)}
+        onSelectEmoji={handleEmojiSelect}
       />
     </div>
   );

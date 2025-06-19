@@ -6,8 +6,7 @@ import { useCanvas } from '../contexts/CanvasContext';
 import { useTools } from '../contexts/ToolsContext';
 import { useBackground } from '../contexts/BackgroundContext';
 import { usePages } from '../contexts/PagesContext';
-import { Download, RotateCcw, Upload, Link, ZoomIn, ZoomOut, Menu, X } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import { RotateCcw, Upload, Link, ZoomIn, ZoomOut, Menu, X } from 'lucide-react';
 
 interface CanvasProps {
   platform: string;
@@ -20,7 +19,7 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { elements, addElement, updateElement, selectElement, selectedElement, clearCanvas, removeElement, duplicateElement } = useCanvas();
   const { selectedTool, getToolCursor } = useTools();
-  const { editorBackgroundColor, canvasBackgroundColor } = useBackground();
+  const { canvasBackgroundColor } = useBackground();
   const { currentPageId, updatePageElements, getCurrentPageElements } = usePages();
   
   const specs = PlatformSpecs[platform as keyof typeof PlatformSpecs] || PlatformSpecs.instagram;
@@ -33,6 +32,13 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [showDimensionsPanel, setShowDimensionsPanel] = useState(true);
   const isLoadingElementsRef = useRef(false);
+
+  // Fixed editor background - no more customization
+  const editorBackgroundStyle = {
+    backgroundColor: '#0f172a',
+    backgroundImage: 'radial-gradient(#232323 1px,rgb(24, 24, 24) 1px)',
+    backgroundSize: '20px 20px'
+  };
 
   useEffect(() => {
     // When platform changes, update to the first format of that platform
@@ -58,79 +64,66 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
     }
   }, [elements, currentPageId]);
 
-  // Load elements when switching pages
+  // Load elements for current page
   useEffect(() => {
+    isLoadingElementsRef.current = true;
     const pageElements = getCurrentPageElements();
-    // Only update if the page has different elements
-    if (JSON.stringify(elements) !== JSON.stringify(pageElements)) {
-      isLoadingElementsRef.current = true;
+    
+    if (pageElements && pageElements.length > 0) {
       clearCanvas();
       pageElements.forEach((element: any) => {
         addElement(element);
       });
-      // Reset the flag after a brief delay to allow all updates to complete
-      setTimeout(() => {
-        isLoadingElementsRef.current = false;
-      }, 100);
-    }
-  }, [currentPageId]);
-
-  // Update container size when format or zoom changes
-  useEffect(() => {
-    if (containerRef.current) {
-      updateCanvasSize();
     }
     
-    // Also update on window resize
+    // Reset the flag after a brief delay to allow state updates
+    setTimeout(() => {
+      isLoadingElementsRef.current = false;
+    }, 100);
+  }, [currentPageId]);
+
+  useEffect(() => {
+    updateCanvasSize();
     window.addEventListener('resize', updateCanvasSize);
     return () => window.removeEventListener('resize', updateCanvasSize);
   }, [currentFormat, zoomLevel]);
 
-  // Handle zoom keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Skip shortcuts if user is editing text
-      if (document.activeElement?.getAttribute('contenteditable') === 'true') {
-        return;
-      }
-
-      // Check for Cmd (Mac) or Ctrl (Windows/Linux)
-      if (event.metaKey || event.ctrlKey) {
-        switch (event.key) {
-          case '=':
-          case '+':
-            event.preventDefault();
-            zoomIn();
-            break;
-          case '-':
-            event.preventDefault();
-            zoomOut();
-            break;
-          case '0':
-            event.preventDefault();
-            setZoomLevel(1); // Reset zoom to 100%
-            break;
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   const updateCanvasSize = () => {
     if (!containerRef.current) return;
     
-    // Calculate available space (no need to account for rulers anymore)
-    const containerWidth = containerRef.current.clientWidth - 24;
-    const containerHeight = containerRef.current.clientHeight - 24;
+    // Calculate fixed canvas area based on viewport size, independent of panel states
+    // This ensures canvas size remains consistent when panels open/close
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
     
-    // Determine which dimension is limiting
-    const scaleByWidth = containerWidth / currentFormat.width;
-    const scaleByHeight = containerHeight / currentFormat.height;
+    // Header height and other UI elements
+    const headerHeight = 64;
+    const dimensionsPanelHeight = showDimensionsPanel ? 80 : 40; // Account for dimensions panel
+    
+    // Calculate available space for canvas
+    const availableHeight = viewportHeight - headerHeight - dimensionsPanelHeight;
+    
+    // Define a fixed canvas area that represents the optimal design space
+    // Use a fixed percentage of viewport to ensure consistency
+    const fixedCanvasAreaWidth = Math.min(viewportWidth * 0.55, 1200); // Max 1200px width
+    const fixedCanvasAreaHeight = Math.min(availableHeight * 0.85, 800); // Max 800px height
+    
+    // Add padding for better visual spacing
+    const canvasAreaWidth = fixedCanvasAreaWidth - 60; // 30px padding on each side
+    const canvasAreaHeight = fixedCanvasAreaHeight - 60; // 30px padding top/bottom
+    
+    // Ensure minimum dimensions
+    const minWidth = 400;
+    const minHeight = 300;
+    const finalCanvasWidth = Math.max(canvasAreaWidth, minWidth);
+    const finalCanvasHeight = Math.max(canvasAreaHeight, minHeight);
+    
+    // Calculate scale to fit the canvas format within the fixed area
+    const scaleByWidth = finalCanvasWidth / currentFormat.width;
+    const scaleByHeight = finalCanvasHeight / currentFormat.height;
     const baseScale = Math.min(scaleByWidth, scaleByHeight, 1);
     
-    // Apply the scale
+    // Apply the scale to the canvas
     if (canvasRef.current) {
       canvasRef.current.style.width = `${currentFormat.width}px`;
       canvasRef.current.style.height = `${currentFormat.height}px`;
@@ -198,16 +191,16 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
   const handleMouseDown = (e: React.MouseEvent) => {
     if (selectedTool === 'hand') {
       setIsPanning(true);
-      setPanStart({ x: e.clientX, y: e.clientY });
-      e.preventDefault();
+      setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isPanning && selectedTool === 'hand') {
-      const deltaX = e.clientX - panStart.x;
-      const deltaY = e.clientY - panStart.y;
-      setPanOffset({ x: deltaX, y: deltaY });
+      setPanOffset({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y,
+      });
     }
   };
 
@@ -215,38 +208,35 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
     setIsPanning(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
-    const elementType = e.dataTransfer.getData('elementType');
+
     const files = Array.from(e.dataTransfer.files);
-    
+    const elementType = e.dataTransfer.getData('text/plain');
+
     if (files.length > 0) {
-      // Handle file drops
-      files.forEach((file) => {
-        if (file.type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const rect = canvasRef.current?.getBoundingClientRect();
-            if (rect && event.target?.result) {
-              const x = (e.clientX - rect.left) / zoomLevel - 100;
-              const y = (e.clientY - rect.top) / zoomLevel - 75;
-              
-              addElement({
-                type: 'image',
-                x: Math.max(0, x),
-                y: Math.max(0, y),
-                width: 200,
-                height: 150,
-                src: event.target.result as string,
-                alt: file.name,
-              });
-            }
-          };
-          reader.readAsDataURL(file);
+      // Handle file uploads
+      const file = files[0];
+      
+      if (file.type.startsWith('image/')) {
+        const imageUrl = URL.createObjectURL(file);
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (rect) {
+          const x = (e.clientX - rect.left) / zoomLevel - 100;
+          const y = (e.clientY - rect.top) / zoomLevel - 75;
+          
+          addElement({
+            type: 'image',
+            x: Math.max(0, x),
+            y: Math.max(0, y),
+            width: 200,
+            height: 150,
+            src: imageUrl,
+            alt: file.name,
+          });
         }
-      });
+      }
     } else if (elementType) {
       // Handle element drops from the elements panel
       const rect = canvasRef.current?.getBoundingClientRect();
@@ -326,37 +316,7 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
     duplicateElement(elementId);
   };
 
-  const exportCanvas = async () => {
-    if (!canvasRef.current) return;
-    
-    try {
-      // Temporarily hide selection indicators and controls
-      const selectionElements = canvasRef.current.querySelectorAll('.ring-2, .absolute.bg-indigo-500, .absolute.-top-10');
-      selectionElements.forEach(el => {
-        (el as HTMLElement).style.display = 'none';
-      });
-      
-      const canvas = await html2canvas(canvasRef.current, {
-        backgroundColor: canvasBackgroundColor,
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-      });
-      
-      // Restore selection indicators
-      selectionElements.forEach(el => {
-        (el as HTMLElement).style.display = '';
-      });
-      
-      const link = document.createElement('a');
-      link.download = `${platform}-${currentFormat.name}-${Date.now()}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (error) {
-      console.error('Export failed:', error);
-    }
-  };
+
 
   const resetCanvas = () => {
     clearCanvas();
@@ -393,45 +353,45 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
       {!showDimensionsPanel && (
         <button
           onClick={() => setShowDimensionsPanel(true)}
-          className="fixed top-20 left-1/2 transform -translate-x-1/2 z-30 px-4 py-2 rounded-lg text-white transition-all duration-200 flex items-center space-x-2 backdrop-blur-md shadow-lg hover:opacity-80"
+          className="fixed top-16 left-1/2 transform -translate-x-1/2 z-30 px-2 py-1 rounded text-white transition-all duration-200 flex items-center space-x-1 backdrop-blur-md shadow-md hover:opacity-80"
           style={{ backgroundColor: 'rgba(26, 26, 26, 0.9)' }}
           title="Open Dimensions Menu"
         >
-          <Menu className="w-4 h-4" />
-          <span className="text-sm font-medium">Dimensions</span>
+          <Menu className="w-3 h-3" />
+          <span className="text-xs font-medium">Dimensions</span>
         </button>
       )}
 
       {/* Floating Format Controls Panel */}
       {showDimensionsPanel && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-20 rounded-xl border border-gray-600 shadow-xl backdrop-blur-md animate-in fade-in duration-200" style={{ backgroundColor: 'rgba(26, 26, 26, 0.4)' }}>
-          <div className="p-4">
-            <div className="flex flex-col space-y-3">
+        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-20 rounded-lg border border-gray-600 shadow-lg backdrop-blur-md animate-in fade-in duration-200" style={{ backgroundColor: 'rgba(26, 26, 26, 0.9)' }}>
+          <div className="p-2">
+            <div className="flex flex-col space-y-2">
               {/* Panel Header with Minimize Button */}
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium text-white flex items-center space-x-2">
-                  <Menu className="w-4 h-4" />
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-xs font-medium text-white flex items-center space-x-1">
+                  <Menu className="w-3 h-3" />
                   <span>Canvas Dimensions</span>
                 </h3>
                 <button
                   onClick={() => setShowDimensionsPanel(false)}
-                  className="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors text-gray-300 hover:text-white"
+                  className="p-1 rounded bg-gray-700 hover:bg-gray-600 transition-colors text-gray-300 hover:text-white"
                   title="Minimize Panel"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3 h-3" />
                 </button>
               </div>
 
               {/* Format Buttons - Centered */}
               <div className="flex justify-center items-center">
-                <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
+                <div className="flex flex-wrap justify-center gap-1 max-w-xl">
                   {specs.formats.map((format) => (
                     <button
                       key={format.name}
                       onClick={() => handleFormatChange(format)}
-                      className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 whitespace-nowrap ${
                         currentFormat.name === format.name
-                          ? 'text-white shadow-lg'
+                          ? 'text-white shadow-md'
                           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                       }`}
                       style={currentFormat.name === format.name ? { backgroundColor: '#ff4940' } : {}}
@@ -445,26 +405,13 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
                 </div>
               </div>
               
-              {/* Controls - Between justification */}
+              {/* Controls - Compact */}
               <div className="flex items-center justify-between">
-                <div className="text-xs text-gray-400">
-                  {currentFormat.name}
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <div className="text-xs font-medium" style={{ color: '#ff4940' }}>
-                    {currentFormat.width}×{currentFormat.height}px
-                  </div>
-                  <div className="text-xs text-gray-300">
-                    Zoom: <span className="font-mono text-white">{Math.round(zoomLevel * 100)}%</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1">
                   <button
                     onClick={() => setShowSafeZones(!showSafeZones)}
-                    className={`px-2 py-1 rounded-lg text-xs sm:text-sm transition-colors ${
-                      showSafeZones
+                    className={`px-2 py-1 rounded text-xs transition-colors ${
+                      showSafeZones 
                         ? 'text-white'
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }`}
@@ -473,33 +420,32 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
                     Safe Zones
                   </button>
                   <button
-                    onClick={zoomOut}
-                    className="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
-                    title="Zoom Out (Cmd/Ctrl + -)"
+                    onClick={resetCanvas}
+                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 transition-colors text-gray-300 hover:text-white"
+                    title="Clear Canvas"
                   >
-                    <ZoomOut className="w-4 h-4" />
+                    <RotateCcw className="w-3 h-3" />
                   </button>
+                </div>
+                
+                {/* Zoom Controls */}
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={zoomOut}
+                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 transition-colors text-gray-300 hover:text-white"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-3 h-3" />
+                  </button>
+                  <span className="text-xs text-gray-300 px-1 min-w-0">
+                    {Math.round(zoomLevel * 100)}%
+                  </span>
                   <button
                     onClick={zoomIn}
-                    className="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
-                    title="Zoom In (Cmd/Ctrl + +)"
+                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 transition-colors text-gray-300 hover:text-white"
+                    title="Zoom In"
                   >
-                    <ZoomIn className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={resetCanvas}
-                    className="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
-                    title="Reset Canvas"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={exportCanvas}
-                    className="px-3 py-1.5 rounded-lg transition-colors flex items-center space-x-1 text-white hover:opacity-80"
-                    style={{ backgroundColor: '#ff4940' }}
-                  >
-                    <Download className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="text-xs sm:text-sm">Export</span>
+                    <ZoomIn className="w-3 h-3" />
                   </button>
                 </div>
               </div>
@@ -508,18 +454,17 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
         </div>
       )}
 
-      {/* Canvas Container */}
       <div className="flex-1 overflow-hidden pt-4">
         <div 
           ref={containerRef} 
           className="relative w-full h-full"
           style={{ 
-            backgroundColor: editorBackgroundColor,
+            ...editorBackgroundStyle,
             transform: `translate(${panOffset.x}px, ${panOffset.y}px)`
           }}
         >
-          {/* Canvas positioned within the container */}
-          <div className="flex justify-center items-center h-full">
+          {/* Canvas positioned within the container - fixed position to ensure consistency */}
+          <div className="absolute inset-0 flex justify-center items-center">
             <div
               ref={canvasRef}
               data-canvas="true"
@@ -535,7 +480,7 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
                 height: `${currentFormat.height}px`,
                 transformOrigin: 'center',
                 transform: `scale(${zoomLevel})`,
-                backgroundColor: isDragOver ? '#fef2f2' : canvasBackgroundColor,
+                backgroundColor: isDragOver ? '#ffffff' : canvasBackgroundColor,
                 borderColor: isDragOver ? '#ff4940' : selectedTool === 'hand' ? '#60a5fa' : '#6b7280',
                 cursor: selectedTool === 'hand' ? (isPanning ? 'grabbing' : 'grab') : getToolCursor(selectedTool)
               }}

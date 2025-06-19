@@ -80,11 +80,10 @@ export function DebugPanel() {
       {/* Toggle Button */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg border border-gray-700 hover:bg-gray-800 transition-colors"
+        className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-full shadow-lg border border-gray-700 hover:bg-gray-800 transition-colors"
       >
         <Bug className="w-4 h-4" />
-        <span className="text-sm font-medium">Debug</span>
-        {isExpanded ? (
+  {isExpanded ? (
           <ChevronDown className="w-4 h-4" />
         ) : (
           <ChevronUp className="w-4 h-4" />

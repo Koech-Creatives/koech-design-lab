@@ -95,9 +95,11 @@ const textStyles = [
       border: '2px solid currentColor', 
       padding: '6px 12px',
       borderRadius: '4px',
-      margin: '2px'
+      margin: '2px',
+      backgroundColor: 'currentColor',
+      color: 'white'
     },
-    description: 'Text with border'
+    description: 'Text with filled box'
   },
   { 
     name: 'Round Boxed', 
@@ -107,9 +109,11 @@ const textStyles = [
       border: '2px solid currentColor', 
       padding: '8px 16px',
       borderRadius: '20px',
-      margin: '2px'
+      margin: '2px',
+      backgroundColor: 'currentColor',
+      color: 'white'
     },
-    description: 'Rounded border'
+    description: 'Rounded filled box'
   },
   { 
     name: 'Neon', 
@@ -201,92 +205,123 @@ const quickTextTypes = [
   },
   {
     name: 'Quote',
-    content: '"Inspiring quote or testimonial"',
-    fontSize: 18,
-    fontWeight: '400',
+    content: '"Your inspirational quote here"',
+    fontSize: 22,
+    fontWeight: '500',
     icon: Quote,
-    description: 'Quotation text'
+    description: 'Quoted text'
   },
+  {
+    name: 'Hashtag',
+    content: '#YourHashtag',
+    fontSize: 18,
+    fontWeight: '600',
+    icon: Hash,
+    description: 'Social media tag'
+  }
 ];
 
+// Helper function to determine if a color is light or dark
+const isLightColor = (color: string): boolean => {
+  // Remove # if present
+  const hex = color.replace('#', '');
+  
+  // Convert to RGB
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  
+  // Calculate luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  
+  return luminance > 0.5;
+};
 
+// Helper function to get contrasting text color
+const getContrastColor = (backgroundColor: string): string => {
+  return isLightColor(backgroundColor) ? '#000000' : '#ffffff';
+};
 
 export function TextTab({ onAddElement }: TextTabProps) {
-  const { addElement, selectedElement, updateElement, elements } = useCanvas();
-  const [selectedColor, setSelectedColor] = useState(brandColors[0]);
+  const [customText, setCustomText] = useState('Your text here');
   const [selectedFont, setSelectedFont] = useState(fontFamilies[0].value);
-  const [selectedWeight, setSelectedWeight] = useState(fontWeights[4].value); // Semibold
-  const [selectedTransform, setSelectedTransform] = useState(textTransforms[0].value);
-  const [selectedStyle, setSelectedStyle] = useState(textStyles[0]);
+  const [selectedFontWeight, setSelectedFontWeight] = useState('400');
+  const [selectedTextTransform, setSelectedTextTransform] = useState('none');
+  const [selectedStyle, setSelectedStyle] = useState('normal');
+  const [selectedColor, setSelectedColor] = useState('#000000');
   const [fontSize, setFontSize] = useState(18);
-  const [textAlign, setTextAlign] = useState('center');
-
+  const [textAlign, setTextAlign] = useState('left');
+  const [isEditingText, setIsEditingText] = useState(false);
+  
+  const { selectedElement, removeElement, updateElement, elements } = useCanvas();
+  
   // Get the selected element object
-  const selectedElementObj = selectedElement ? elements?.find(el => el.id === selectedElement) : null;
+  const selectedElementObj = selectedElement ? elements.find(el => el.id === selectedElement) : null;
   
   // Check if we have a selected text element
   const isTextSelected = selectedElementObj?.type === 'text';
-  const hasTextSelection = isTextSelected && (window.getSelection()?.toString()?.length || 0) > 0;
 
-  // Apply property to selected text or whole element
   const applyTextProperty = (property: string, value: any) => {
-    if (hasTextSelection && (window as any).applyTextPropertyToSelected) {
-      // Apply to selected text portion
-      (window as any).applyTextPropertyToSelected(property, value);
-    } else if (isTextSelected && selectedElement) {
-      // Apply to whole text element
+    if (isTextSelected && selectedElement) {
       updateElement(selectedElement, { [property]: value });
     }
   };
 
   const handleQuickAdd = (textType: any) => {
-    onAddElement({
+    const element = {
+      id: Date.now().toString(),
       type: 'text',
-      x: 400,
-      y: 300,
-      width: 300,
-      height: Math.max(textType.fontSize * 1.5, 40),
+      x: 300,
+      y: 200,
+      width: 200,
+      height: 50,
       content: textType.content,
       fontSize: textType.fontSize,
       fontWeight: textType.fontWeight,
-      color: selectedColor,
       fontFamily: selectedFont,
+      color: selectedColor,
       textAlign: textAlign,
-      textTransform: selectedTransform,
-      textStyle: selectedStyle.value,
-      customStyle: selectedStyle.style,
-      autoWrap: true, // Enable auto-wrap
-    });
+      autoWrap: true,
+      autoResize: true,
+      textTransform: selectedTextTransform,
+      textStyle: selectedStyle,
+      opacity: 1,
+      rotation: 0
+    };
+    onAddElement(element);
   };
 
   const handleCustomTextAdd = () => {
-    onAddElement({
+    const element = {
+      id: Date.now().toString(),
       type: 'text',
-      x: 400,
-      y: 300,
-      width: 300,
-      height: Math.max(fontSize * 1.5, 40),
-      content: 'Your custom text',
+      x: 300,
+      y: 200,
+      width: 200,
+      height: 50,
+      content: customText,
       fontSize: fontSize,
-      fontWeight: selectedWeight,
-      color: selectedColor,
+      fontWeight: selectedFontWeight,
       fontFamily: selectedFont,
+      color: selectedColor,
       textAlign: textAlign,
-      textTransform: selectedTransform,
-      textStyle: selectedStyle.value,
-      customStyle: selectedStyle.style,
-      autoWrap: true, // Enable auto-wrap
-    });
+      autoWrap: true,
+      autoResize: true,
+      textTransform: selectedTextTransform,
+      textStyle: selectedStyle,
+      opacity: 1,
+      rotation: 0
+    };
+    onAddElement(element);
   };
 
   const handleFontSizeChange = (newSize: number) => {
-    const clampedSize = Math.max(8, Math.min(200, newSize));
-    setFontSize(clampedSize);
-    applyTextProperty('fontSize', clampedSize);
+    setFontSize(newSize);
+    applyTextProperty('fontSize', newSize);
   };
 
   const handleFontWeightChange = (weight: string) => {
-    setSelectedWeight(weight);
+    setSelectedFontWeight(weight);
     applyTextProperty('fontWeight', weight);
   };
 
@@ -301,8 +336,8 @@ export function TextTab({ onAddElement }: TextTabProps) {
   };
 
   const handleTextStyleApply = (style: any) => {
-    setSelectedStyle(style);
-    applyTextProperty('textStyle', style);
+    setSelectedStyle(style.value);
+    applyTextProperty('textStyle', style.value);
   };
 
   const handleTextAlignChange = (alignment: string) => {
@@ -311,80 +346,82 @@ export function TextTab({ onAddElement }: TextTabProps) {
   };
 
   const handleTextTransformChange = (transform: string) => {
-    setSelectedTransform(transform);
+    setSelectedTextTransform(transform);
     applyTextProperty('textTransform', transform);
   };
 
   return (
-    <div className="h-full bg-gray-900 text-white overflow-y-auto">
-      <div className="p-4 space-y-6">
-        {/* Header */}
-        <div className="text-center">
-          <Type className="w-8 h-8 mx-auto mb-2 text-indigo-400" />
-          <h2 className="text-lg font-semibold">Text Tools</h2>
-          <p className="text-sm text-gray-400">Create and style text elements</p>
-        </div>
-
-        {/* Status indicator */}
-        {isTextSelected && (
-          <div className="bg-blue-900/50 border border-blue-700 rounded-lg p-3 mb-4">
-            <div className="flex items-center space-x-2">
-              <Type className="w-4 h-4 text-blue-400" />
-              <span className="text-sm text-blue-300 font-medium">
-                {hasTextSelection ? 'Text Selected - Changes apply to selection' : 'Text Element Selected - Changes apply to entire text'}
-              </span>
-            </div>
-            {hasTextSelection && (
-              <p className="text-xs text-blue-400 mt-1">
-                Highlight text and use controls below to format specific portions
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Quick Add Text */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center">
-            <Plus className="w-4 h-4 mr-2" />
-            Quick Add Text
-          </h3>
-          <div className="grid grid-cols-2 gap-2">
-            {quickTextTypes.map((textType) => (
+    <div className="p-3 space-y-4">
+      {/* Quick Text Types */}
+      <div>
+        <h3 className="text-xs font-semibold text-white mb-2">Quick Add</h3>
+        <div className="grid grid-cols-1 gap-2">
+          {quickTextTypes.map((textType) => {
+            const Icon = textType.icon;
+            return (
               <button
                 key={textType.name}
                 onClick={() => handleQuickAdd(textType)}
-                className="p-3 bg-gray-800 border border-gray-600 rounded-lg hover:border-indigo-500 hover:bg-gray-700 transition-all text-left group"
+                className="flex items-center space-x-2 p-2 rounded text-left transition-colors hover:bg-gray-700 group"
+                style={{ backgroundColor: '#003a63' }}
               >
-                <div className="text-xs font-medium text-gray-400 mb-1">{textType.name}</div>
-                <div 
-                  className="text-gray-200 truncate"
-                  style={{ 
-                    fontSize: `${Math.min(textType.fontSize * 0.7, 14)}px`,
-                    fontWeight: textType.fontWeight,
-                    fontStyle: 'normal'
-                  }}
-                >
-                  {textType.content}
+                <Icon className="w-3.5 h-3.5 text-gray-400 group-hover:text-white" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-white">{textType.name}</div>
+                  <div className="text-xs text-gray-400 truncate">{textType.description}</div>
                 </div>
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
+      </div>
 
-        {/* Font Controls */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-300 mb-3">Font Controls</h3>
-          
+      {/* Custom Text Input */}
+      <div>
+        <h3 className="text-xs font-semibold text-white mb-2">Custom Text</h3>
+        <div className="space-y-2">
+          <textarea
+            value={customText}
+            onChange={(e) => setCustomText(e.target.value)}
+            placeholder="Enter your text..."
+            className="w-full p-2 text-xs border rounded resize-none"
+            style={{ 
+              backgroundColor: '#003a63', 
+              borderColor: '#004080',
+              color: 'white',
+              minHeight: '60px'
+            }}
+            rows={3}
+          />
+          <button
+            onClick={handleCustomTextAdd}
+            className="w-full px-3 py-2 rounded text-xs font-medium text-white transition-colors hover:opacity-80"
+            style={{ backgroundColor: '#ff4940' }}
+          >
+            Add Text
+          </button>
+        </div>
+      </div>
+
+      {/* Font Settings */}
+      <div>
+        <h3 className="text-xs font-semibold text-white mb-2">Font Settings</h3>
+        <div className="space-y-2">
           {/* Font Family */}
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-gray-400 mb-2">Font Family</label>
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Font Family</label>
             <select
               value={selectedFont}
               onChange={(e) => handleFontFamilyChange(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-indigo-500"
+              className="w-full p-2 text-xs border rounded"
+              style={{ 
+                backgroundColor: '#003a63', 
+                borderColor: '#004080',
+                color: 'white'
+              }}
             >
               {fontFamilies.map((font) => (
-                <option key={font.name} value={font.value} style={{ fontFamily: font.value }}>
+                <option key={font.value} value={font.value}>
                   {font.name}
                 </option>
               ))}
@@ -392,240 +429,172 @@ export function TextTab({ onAddElement }: TextTabProps) {
           </div>
 
           {/* Font Size */}
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-gray-400 mb-2">Font Size</label>
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Font Size</label>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => handleFontSizeChange(Math.max(8, fontSize - 2))}
-                className="p-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+                className="p-1 rounded transition-colors"
+                style={{ backgroundColor: '#003a63', color: 'white' }}
               >
-                <Minus className="w-4 h-4" />
+                <Minus className="w-3 h-3" />
               </button>
               <input
                 type="number"
                 value={fontSize}
-                onChange={(e) => handleFontSizeChange(Math.max(8, Math.min(200, parseInt(e.target.value) || 18)))}
-                className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm text-center focus:outline-none focus:border-indigo-500"
+                onChange={(e) => handleFontSizeChange(parseInt(e.target.value) || 18)}
+                className="flex-1 p-2 text-xs text-center border rounded"
+                style={{ 
+                  backgroundColor: '#003a63', 
+                  borderColor: '#004080',
+                  color: 'white'
+                }}
                 min="8"
                 max="200"
               />
               <button
                 onClick={() => handleFontSizeChange(Math.min(200, fontSize + 2))}
-                className="p-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+                className="p-1 rounded transition-colors"
+                style={{ backgroundColor: '#003a63', color: 'white' }}
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3 h-3" />
               </button>
             </div>
           </div>
 
-                  {/* Font Weight */}
-        <div className="mb-4">
-          <label className="block text-xs font-medium text-gray-400 mb-2">Font Weight</label>
-          <div className="grid grid-cols-4 gap-1">
-            {fontWeights.map((weight) => (
-              <button
-                key={weight.value}
-                onClick={() => handleFontWeightChange(weight.value)}
-                className={`px-2 py-1 text-xs rounded transition-colors ${
-                  selectedWeight === weight.value
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-800 border border-gray-600 text-gray-300 hover:bg-gray-700'
-                }`}
-                style={{ fontWeight: weight.value }}
-              >
-                {weight.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Format Buttons */}
-        <div className="mb-4">
-          <label className="block text-xs font-medium text-gray-400 mb-2">Quick Format</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => applyTextProperty('fontWeight', 'bold')}
-              className="px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:border-indigo-500 hover:bg-gray-700 transition-all flex items-center space-x-1"
-              title="Bold"
+          {/* Font Weight */}
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Font Weight</label>
+            <select
+              value={selectedFontWeight}
+              onChange={(e) => handleFontWeightChange(e.target.value)}
+              className="w-full p-2 text-xs border rounded"
+              style={{ 
+                backgroundColor: '#003a63', 
+                borderColor: '#004080',
+                color: 'white'
+              }}
             >
-              <Bold className="w-4 h-4" />
-              <span className="text-xs">Bold</span>
-            </button>
-            <button
-              onClick={() => applyTextProperty('italic', true)}
-              className="px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:border-indigo-500 hover:bg-gray-700 transition-all flex items-center space-x-1"
-              title="Italic"
-            >
-              <Italic className="w-4 h-4" />
-              <span className="text-xs">Italic</span>
-            </button>
-            <button
-              onClick={() => applyTextProperty('underline', true)}
-              className="px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:border-indigo-500 hover:bg-gray-700 transition-all flex items-center space-x-1"
-              title="Underline"
-            >
-              <Underline className="w-4 h-4" />
-              <span className="text-xs">Underline</span>
-            </button>
-            <button
-              onClick={() => applyTextProperty('textStyle', { value: 'strikethrough', style: { textDecoration: 'line-through' } })}
-              className="px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:border-indigo-500 hover:bg-gray-700 transition-all flex items-center space-x-1"
-              title="Strikethrough"
-            >
-              <Minus className="w-4 h-4" />
-              <span className="text-xs">Strike</span>
-            </button>
+              {fontWeights.map((weight) => (
+                <option key={weight.value} value={weight.value}>
+                  {weight.name}
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
-        </div>
-
-        {/* Text Color */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center">
-            <Palette className="w-4 h-4 mr-2" />
-            Text Color
-          </h3>
-          <div className="grid grid-cols-5 gap-2 mb-3">
-            {brandColors.map((color) => (
-              <button
-                key={color}
-                onClick={() => handleColorChange(color)}
-                className={`w-10 h-10 rounded-lg border-2 transition-all duration-200 ${
-                  selectedColor === color 
-                    ? 'border-indigo-400 ring-2 ring-indigo-400/50' 
-                    : 'border-gray-600 hover:border-gray-500'
-                }`}
-                style={{ backgroundColor: color }}
-                title={color}
-              />
-            ))}
-          </div>
-          <input
-            type="color"
-            value={selectedColor}
-            onChange={(e) => handleColorChange(e.target.value)}
-            className="w-full h-10 bg-gray-800 border border-gray-600 rounded-lg cursor-pointer"
-          />
-        </div>
-
-        {/* Text Alignment */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-300 mb-3">Text Alignment</h3>
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { icon: AlignLeft, value: 'left', label: 'Left' },
-              { icon: AlignCenter, value: 'center', label: 'Center' },
-              { icon: AlignRight, value: 'right', label: 'Right' },
-              { icon: AlignJustify, value: 'justify', label: 'Justify' }
-            ].map((align) => {
-              const Icon = align.icon;
-              return (
-                <button
-                  key={align.value}
-                  onClick={() => handleTextAlignChange(align.value)}
-                  className="p-3 bg-gray-800 border border-gray-600 rounded-lg hover:border-indigo-500 hover:bg-gray-700 transition-all flex flex-col items-center space-y-1"
-                  title={align.label}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="text-xs">{align.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Text Behavior */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-300 mb-3">Text Behavior</h3>
-          <div className="space-y-2">
-            <button
-              onClick={() => applyTextProperty('autoWrap', true)}
-              className={`w-full px-3 py-2 text-sm rounded-lg transition-all flex items-center space-x-2 ${
-                selectedElementObj?.autoWrap !== false
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-800 border border-gray-600 text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span>Auto-resize (Dynamic)</span>
-            </button>
-            <button
-              onClick={() => applyTextProperty('autoWrap', false)}
-              className={`w-full px-3 py-2 text-sm rounded-lg transition-all flex items-center space-x-2 ${
-                selectedElementObj?.autoWrap === false
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-800 border border-gray-600 text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              <Square className="w-4 h-4" />
-              <span>Fixed size (Manual resize)</span>
-            </button>
-          </div>
-          <p className="text-xs text-gray-400 mt-2">
-            Auto-resize: Text box grows with content. Fixed size: Drag corners to resize manually.
-          </p>
-        </div>
-
-        {/* Text Transform */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-300 mb-3">Text Case</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: 'Normal', value: 'none' },
-              { label: 'UPPERCASE', value: 'uppercase' },
-              { label: 'lowercase', value: 'lowercase' },
-              { label: 'Capitalize', value: 'capitalize' }
-            ].map((transform) => (
-              <button
-                key={transform.value}
-                onClick={() => handleTextTransformChange(transform.value)}
-                className="px-3 py-2 text-xs bg-gray-800 border border-gray-600 rounded-lg hover:border-indigo-500 hover:bg-gray-700 transition-all"
-                style={{ textTransform: transform.value as any }}
-              >
-                {transform.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Text Styles */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center">
-            <Sparkles className="w-4 h-4 mr-2" />
-            Text Styles
-          </h3>
-          <div className="grid grid-cols-2 gap-2">
-            {textStyles.map((style) => (
-              <button
-                key={style.name}
-                onClick={() => handleTextStyleApply(style)}
-                className="p-3 bg-gray-800 border border-gray-600 rounded-lg hover:border-indigo-500 hover:bg-gray-700 transition-all text-left group"
-              >
-                <div className="text-xs font-medium text-gray-400 mb-1">{style.name}</div>
-                <div 
-                  className="text-sm text-gray-200"
-                  style={style.style}
-                >
-                  {style.description}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Usage Instructions */}
-        <div className="bg-gray-800 border border-gray-600 rounded-lg p-3">
-          <h4 className="text-sm font-medium text-gray-300 mb-2">💡 How to Use Text Formatting</h4>
-          <ul className="text-xs text-gray-400 space-y-1">
-            <li>• <strong className="text-blue-400">Double-click</strong> any text to edit it</li>
-            <li>• <strong className="text-green-400">Highlight text</strong> and use controls above to format specific portions</li>
-            <li>• <strong className="text-purple-400">Select text element</strong> to apply changes to entire text</li>
-            <li>• <strong className="text-yellow-400">Boxed styles</strong> create pill/box containers around text</li>
-            <li>• <strong className="text-red-400">Effects</strong> like neon, shadow, gradient work on selected text</li>
-            <li>• Use <strong>Ctrl+B/I/U</strong> for quick formatting while editing</li>
-          </ul>
         </div>
       </div>
+
+      {/* Text Alignment */}
+      <div>
+        <h3 className="text-xs font-semibold text-white mb-2">Alignment</h3>
+        <div className="grid grid-cols-4 gap-1">
+          {[
+            { value: 'left', icon: AlignLeft },
+            { value: 'center', icon: AlignCenter },
+            { value: 'right', icon: AlignRight },
+            { value: 'justify', icon: AlignJustify }
+          ].map(({ value, icon: Icon }) => (
+            <button
+              key={value}
+              onClick={() => handleTextAlignChange(value)}
+              className={`p-2 rounded transition-colors ${
+                textAlign === value ? 'text-white' : 'text-gray-400 hover:text-white'
+              }`}
+              style={{ 
+                backgroundColor: textAlign === value ? '#ff4940' : '#003a63'
+              }}
+            >
+              <Icon className="w-3.5 h-3.5" />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Text Transform */}
+      <div>
+        <h3 className="text-xs font-semibold text-white mb-2">Text Transform</h3>
+        <div className="grid grid-cols-2 gap-1">
+          {textTransforms.map((transform) => (
+            <button
+              key={transform.value}
+              onClick={() => handleTextTransformChange(transform.value)}
+              className={`p-2 rounded text-xs transition-colors ${
+                selectedTextTransform === transform.value ? 'text-white' : 'text-gray-400 hover:text-white'
+              }`}
+              style={{ 
+                backgroundColor: selectedTextTransform === transform.value ? '#ff4940' : '#003a63'
+              }}
+            >
+              {transform.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Color Palette */}
+      <div>
+        <h3 className="text-xs font-semibold text-white mb-2">Color</h3>
+        <div className="grid grid-cols-5 gap-1">
+          {brandColors.map((color) => (
+            <button
+              key={color}
+              onClick={() => handleColorChange(color)}
+              className={`w-8 h-8 rounded border-2 transition-all ${
+                selectedColor === color ? 'border-white' : 'border-gray-600'
+              }`}
+              style={{ backgroundColor: color }}
+              title={color}
+            />
+          ))}
+        </div>
+        <input
+          type="color"
+          value={selectedColor}
+          onChange={(e) => handleColorChange(e.target.value)}
+          className="w-full h-8 rounded border-2 mt-2"
+          style={{ borderColor: '#004080' }}
+        />
+      </div>
+
+      {/* Text Effects */}
+      <div>
+        <h3 className="text-xs font-semibold text-white mb-2">Text Effects</h3>
+        <div className="grid grid-cols-2 gap-1">
+          {textStyles.map((style) => (
+            <button
+              key={style.value}
+              onClick={() => handleTextStyleApply(style)}
+              className={`p-2 rounded text-xs transition-colors text-left ${
+                selectedStyle === style.value ? 'text-white' : 'text-gray-400 hover:text-white'
+              }`}
+              style={{ 
+                backgroundColor: selectedStyle === style.value ? '#ff4940' : '#003a63'
+              }}
+              title={style.description}
+            >
+              {style.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Delete Text Button */}
+      {isTextSelected && selectedElementObj && (
+        <div>
+          <button
+            onClick={() => {
+              if (selectedElementObj) {
+                removeElement(selectedElementObj.id);
+              }
+            }}
+            className="w-full px-3 py-2 rounded text-xs font-medium text-white transition-colors hover:opacity-80"
+            style={{ backgroundColor: '#ef4444' }}
+          >
+            Delete Text
+          </button>
+        </div>
+      )}
     </div>
   );
 } 

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="description" content="Professional design tool for creating stunning social media content. Design posts for Instagram, LinkedIn, Twitter, and TikTok with ease." />
     <meta name="keywords" content="design tool, social media, graphics, canvas, Instagram, LinkedIn, Twitter, TikTok" />
     <meta name="author" content="Koech Creatives" />
@@ -30,6 +30,63 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     
     <title>Koech Canvas - Professional Design Tool</title>
+    
+    <!-- Prevent zoom and scaling issues in production -->
+    <style>
+      html {
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        zoom: 1;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      
+      body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        min-height: 100dvh;
+        overscroll-behavior: none;
+        touch-action: manipulation;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        zoom: 1;
+        transform: none;
+      }
+      
+      #root {
+        width: 100%;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+        position: relative;
+        zoom: 1;
+        transform: none;
+      }
+      
+      /* Prevent zoom on iOS */
+      input, textarea, select {
+        font-size: 16px !important;
+        transform-origin: left top;
+        zoom: 1;
+      }
+      
+      /* Ensure no unwanted transforms */
+      * {
+        box-sizing: border-box;
+      }
+      
+      /* Fix for high DPI displays */
+      @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+        html {
+          zoom: 1;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

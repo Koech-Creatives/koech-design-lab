@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Canvas } from './components/Canvas';
 import { Sidebar } from './components/Sidebar';
 import { LeftPanel } from './components/LeftPanel';
@@ -24,6 +24,43 @@ function App() {
   const [showProjectsModal, setShowProjectsModal] = useState(false);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
 
+  // Fix scaling issues on mount
+  useEffect(() => {
+    // Reset zoom and transforms on mount
+    const resetScaling = () => {
+      const html = document.documentElement;
+      const body = document.body;
+      const root = document.getElementById('root');
+      
+      if (html) {
+        html.style.zoom = '1';
+        html.style.transform = 'none';
+        html.style.webkitTransform = 'none';
+      }
+      
+      if (body) {
+        body.style.zoom = '1';
+        body.style.transform = 'none';
+        body.style.webkitTransform = 'none';
+      }
+      
+      if (root) {
+        root.style.zoom = '1';
+        root.style.transform = 'none';
+        root.style.webkitTransform = 'none';
+      }
+    };
+
+    resetScaling();
+    
+    // Also reset on window resize (in case of device rotation, etc.)
+    window.addEventListener('resize', resetScaling);
+    
+    return () => {
+      window.removeEventListener('resize', resetScaling);
+    };
+  }, []);
+
   const AppContent = () => (
     <BrandProvider>
       <CanvasProvider>
@@ -31,7 +68,18 @@ function App() {
           <PagesProvider>
             <ProjectProvider>
               <BackgroundProvider>
-                <div className="flex flex-col h-screen overflow-hidden text-white" style={{ backgroundColor: '#1a1a1a' }}>
+                <div 
+                  className="flex flex-col h-screen overflow-hidden text-white app-container" 
+                  style={{ 
+                    backgroundColor: '#1a1a1a',
+                    zoom: 1,
+                    transform: 'none',
+                                         WebkitTransform: 'none',
+                    width: '100vw',
+                    height: '100vh',
+                    position: 'relative'
+                  }}
+                >
                   <Header 
                     selectedPlatform={selectedPlatform}
                     onPlatformChange={setSelectedPlatform}
@@ -42,7 +90,7 @@ function App() {
                     <Sidebar 
                       currentFormat={currentFormat}
                     />
-                    <main className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: '#1a1a1a' }}>
+                    <main className="flex-1 flex flex-col overflow-hidden main-layout" style={{ backgroundColor: '#1a1a1a' }}>
                       <Canvas 
                         platform={selectedPlatform}
                         template={selectedTemplate}

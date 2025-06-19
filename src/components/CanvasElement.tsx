@@ -50,9 +50,9 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
     };
   }
 
-  // Dynamic text container resizing
+  // Dynamic text container resizing - now only on content change, not manual resize
   const resizeTextContainer = useCallback(() => {
-    if (textRef.current && element.type === 'text' && element.autoWrap !== false) {
+    if (textRef.current && element.type === 'text') {
       // Get canvas boundaries from parent canvas element
       const canvasElement = document.querySelector('[data-canvas="true"]');
       const canvasWidth = canvasElement ? canvasElement.clientWidth : 1080;
@@ -70,32 +70,34 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
       tempElement.style.fontFamily = element.fontFamily || 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
       tempElement.style.padding = '8px';
       tempElement.style.lineHeight = '1.4';
+      tempElement.style.textAlign = element.textAlign || 'left';
       
       // Set max width based on canvas boundaries and current position
       const maxPossibleWidth = Math.max(200, canvasWidth - element.x - 20);
-      tempElement.style.maxWidth = `${Math.min(600, maxPossibleWidth)}px`;
+      tempElement.style.maxWidth = `${Math.min(800, maxPossibleWidth)}px`;
       tempElement.innerHTML = textRef.current.innerHTML || 'Sample Text';
       
       document.body.appendChild(tempElement);
       
       // Get the natural dimensions
-      const naturalWidth = tempElement.scrollWidth;
-      const naturalHeight = tempElement.scrollHeight;
+      const naturalWidth = Math.max(tempElement.scrollWidth, tempElement.offsetWidth);
+      const naturalHeight = Math.max(tempElement.scrollHeight, tempElement.offsetHeight);
       
       document.body.removeChild(tempElement);
       
       // Calculate new dimensions with constraints
-      const minWidth = 100;
+      const minWidth = 80;
       const minHeight = Math.max(30, (element.fontSize || 18) * 1.4 + 16);
       
       // Constrain to canvas boundaries
       const maxWidth = Math.max(minWidth, canvasWidth - element.x - 10);
       const maxHeight = Math.max(minHeight, canvasHeight - element.y - 10);
       
+      // Add some padding for comfortable text display
       const newWidth = Math.max(minWidth, Math.min(maxWidth, naturalWidth + 20));
       const newHeight = Math.max(minHeight, Math.min(maxHeight, naturalHeight + 10));
       
-      // Only update if there's a significant change
+      // Only update if there's a significant change (threshold of 5px to prevent excessive updates)
       if (Math.abs(newWidth - element.width) > 5 || Math.abs(newHeight - element.height) > 5) {
         onUpdate({
           width: newWidth,
@@ -135,6 +137,16 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
     document.execCommand(command, false, value);
     saveTextContent();
     resizeTextContainer();
+  };
+
+  // Helper function to determine if a color is light
+  const isLightColor = (color: string) => {
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return brightness > 155;
   };
 
   // Apply text properties from TextTab to selected text
@@ -193,24 +205,32 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
             // Apply custom styles like boxed, neon, etc.
             const styleSpan = document.createElement('span');
             
-            // Apply the style properties
+            // Get current font color for boxed styles
+            const currentColor = element.color || '#000000';
+            
+            // Apply the style properties based on the effect type
             if (value.style) {
               Object.assign(styleSpan.style, value.style);
-            }
-            
-            // Handle special cases for boxed styles
-            if (value.value === 'boxed') {
-              styleSpan.style.display = 'inline-block';
-              styleSpan.style.border = '2px solid currentColor';
-              styleSpan.style.padding = '6px 12px';
-              styleSpan.style.borderRadius = '4px';
-              styleSpan.style.margin = '2px';
-            } else if (value.value === 'round-boxed') {
-              styleSpan.style.display = 'inline-block';
-              styleSpan.style.border = '2px solid currentColor';
-              styleSpan.style.padding = '8px 16px';
-              styleSpan.style.borderRadius = '20px';
-              styleSpan.style.margin = '2px';
+              
+              // Handle special cases for boxed styles with proper contrast
+              if (value.value === 'boxed' || value.value === 'round-boxed') {
+                styleSpan.style.backgroundColor = currentColor;
+                styleSpan.style.color = isLightColor(currentColor) ? '#000000' : '#ffffff';
+                styleSpan.style.border = `2px solid ${currentColor}`;
+              }
+              
+              // Handle neon effect with current color
+              if (value.value === 'neon') {
+                styleSpan.style.textShadow = `0 0 10px ${currentColor}, 0 0 20px ${currentColor}, 0 0 30px ${currentColor}`;
+                styleSpan.style.fontWeight = 'bold';
+                styleSpan.style.color = currentColor;
+              }
+              
+              // Handle outlined effect
+              if (value.value === 'outlined') {
+                styleSpan.style.WebkitTextStroke = `2px ${currentColor}`;
+                styleSpan.style.color = 'transparent';
+              }
             }
             
             try {
@@ -490,6 +510,20 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
           newX = Math.max(0, element.x + (resizeStart.width - newWidth));
           newY = Math.max(0, element.y + (resizeStart.height - newHeight));
           break;
+        case 'n': // North (top edge)
+          newHeight = Math.max(30, resizeStart.height - deltaY);
+          newY = Math.max(0, element.y + (resizeStart.height - newHeight));
+          break;
+        case 's': // South (bottom edge)
+          newHeight = Math.max(30, Math.min(canvasHeight - element.y, resizeStart.height + deltaY));
+          break;
+        case 'w': // West (left edge)
+          newWidth = Math.max(50, resizeStart.width - deltaX);
+          newX = Math.max(0, element.x + (resizeStart.width - newWidth));
+          break;
+        case 'e': // East (right edge)
+          newWidth = Math.max(50, Math.min(canvasWidth - element.x, resizeStart.width + deltaX));
+          break;
       }
       
       // Ensure element stays within canvas bounds
@@ -513,11 +547,6 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
       setResizeDirection('');
       document.removeEventListener('mousemove', handleResizeMouseMove);
       document.removeEventListener('mouseup', handleResizeMouseUp);
-      
-      // For text elements, disable auto-wrap when manually resized
-      if (element.type === 'text') {
-        onUpdate({ autoWrap: false });
-      }
     };
     
     document.addEventListener('mousemove', handleResizeMouseMove);
@@ -547,7 +576,7 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
   const handleTextInput = (e: React.FormEvent) => {
     // Save content on input
     saveTextContent();
-    // Debounced resize
+    // Trigger resize for content changes
     debouncedResize();
   };
 
@@ -601,13 +630,10 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
   };
 
   const handleTextMouseDown = (e: React.MouseEvent) => {
-    if (isEditing) {
-      // Allow text selection and cursor placement
-      e.stopPropagation();
-      return;
+    // For text elements when not editing, allow normal dragging
+    if (!isEditing && element.type === 'text') {
+      handleMouseDown(e);
     }
-    // If not editing, handle as normal element
-    handleMouseDown(e);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -786,14 +812,16 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
               wordWrap: 'break-word',
               overflowWrap: 'break-word',
               textTransform: element.textTransform || 'none',
-              userSelect: element.locked ? 'none' : (isEditing ? 'text' : 'pointer'),
-              cursor: element.locked ? 'not-allowed' : (isEditing ? 'text' : 'pointer'),
+              userSelect: element.locked ? 'none' : (isEditing ? 'text' : 'none'),
+              pointerEvents: element.locked ? 'none' : 'auto',
+              cursor: element.locked ? 'not-allowed' : (isEditing ? 'text' : 'move'),
               minHeight: `${(element.fontSize || 18) * 1.4 + 16}px`,
               display: 'block',
-              overflow: element.autoWrap === false ? 'hidden' : 'visible',
-              resize: element.autoWrap === false ? 'both' : 'none',
+              overflow: 'visible',
+              resize: 'none',
               outline: isEditing ? '2px solid #6366f1' : 'none',
               outlineOffset: isEditing ? '2px' : '0',
+              hyphens: 'auto',
               ...element.customStyle,
             }}
             contentEditable={isEditing && !element.locked}
@@ -801,7 +829,7 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
             onInput={handleTextInput}
             onBlur={handleTextBlur}
             onKeyDown={handleKeyDown}
-            onMouseDown={handleTextMouseDown}
+            onMouseDown={isEditing ? undefined : handleTextMouseDown}
             onMouseUp={(e) => isEditing && e.stopPropagation()}
             onMouseMove={(e) => isEditing && e.stopPropagation()}
             onSelect={handleTextSelection}
@@ -922,8 +950,9 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
   return (
     <div
       ref={elementRef}
+      data-element-id={element.id}
       className={`absolute select-none group ${
-        element.locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-move')
+        element.locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : (element.type === 'text' ? 'cursor-move hover:bg-blue-50 hover:bg-opacity-10' : 'cursor-move'))
       } ${isSelected ? 'ring-2 ring-indigo-500' : ''}`}
       style={{
         left: `${element.x}px`,
@@ -939,10 +968,23 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
         WebkitUserSelect: isEditing ? 'text' : 'none',
         touchAction: 'none'
       }}
-      onMouseDown={!isEditing ? handleMouseDown : undefined}
+      onMouseDown={!isEditing && element.type !== 'text' ? handleMouseDown : undefined}
       onDoubleClick={handleDoubleClick}
     >
       {renderElement()}
+      
+      {/* Invisible drag overlay for text elements when not editing */}
+      {element.type === 'text' && !isEditing && (
+        <div
+          className="absolute inset-0 w-full h-full z-10 cursor-move"
+          onMouseDown={handleMouseDown}
+          style={{
+            background: 'transparent',
+            pointerEvents: 'auto'
+          }}
+          title="Click and drag to move text"
+        />
+      )}
       
       {/* Text Formatting Toolbar */}
       <TextFormattingToolbar />
@@ -954,20 +996,45 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
           {!element.locked && (
             <>
               <div
-                className="absolute -top-1 -left-1 w-3 h-3 bg-indigo-500 border border-white rounded-full cursor-nw-resize opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute -top-2 -left-2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-nw-resize shadow-lg hover:bg-indigo-400 transition-colors"
                 onMouseDown={(e) => handleResizeMouseDown(e, 'nw')}
+                title="Resize from top-left corner"
               />
               <div
-                className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-500 border border-white rounded-full cursor-ne-resize opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute -top-2 -right-2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-ne-resize shadow-lg hover:bg-indigo-400 transition-colors"
                 onMouseDown={(e) => handleResizeMouseDown(e, 'ne')}
+                title="Resize from top-right corner"
               />
               <div
-                className="absolute -bottom-1 -left-1 w-3 h-3 bg-indigo-500 border border-white rounded-full cursor-sw-resize opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute -bottom-2 -left-2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-sw-resize shadow-lg hover:bg-indigo-400 transition-colors"
                 onMouseDown={(e) => handleResizeMouseDown(e, 'sw')}
+                title="Resize from bottom-left corner"
               />
               <div
-                className="absolute -bottom-1 -right-1 w-3 h-3 bg-indigo-500 border border-white rounded-full cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute -bottom-2 -right-2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-se-resize shadow-lg hover:bg-indigo-400 transition-colors"
                 onMouseDown={(e) => handleResizeMouseDown(e, 'se')}
+                title="Resize from bottom-right corner"
+              />
+              {/* Edge handles for better UX */}
+              <div
+                className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-n-resize shadow-lg hover:bg-indigo-400 transition-colors"
+                onMouseDown={(e) => handleResizeMouseDown(e, 'n')}
+                title="Resize from top edge"
+              />
+              <div
+                className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-s-resize shadow-lg hover:bg-indigo-400 transition-colors"
+                onMouseDown={(e) => handleResizeMouseDown(e, 's')}
+                title="Resize from bottom edge"
+              />
+              <div
+                className="absolute -left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-w-resize shadow-lg hover:bg-indigo-400 transition-colors"
+                onMouseDown={(e) => handleResizeMouseDown(e, 'w')}
+                title="Resize from left edge"
+              />
+              <div
+                className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-e-resize shadow-lg hover:bg-indigo-400 transition-colors"
+                onMouseDown={(e) => handleResizeMouseDown(e, 'e')}
+                title="Resize from right edge"
               />
             </>
           )}
