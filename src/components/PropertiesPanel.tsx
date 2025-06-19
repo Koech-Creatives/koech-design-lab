@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useCanvas } from '../contexts/CanvasContext';
 import { useBrand } from '../contexts/BrandContext';
-import { useBackground } from '../contexts/BackgroundContext';
-import { Palette, Type, Move, Maximize as Resize, Sun, Square, Circle, Monitor } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { Palette, Type, Move, Maximize as Resize, Square, Plus, X, Upload, Image } from 'lucide-react';
 
 export function PropertiesPanel() {
   const { elements, selectedElement, updateElement } = useCanvas();
-  const { brandAssets } = useBrand();
-  const { canvasBackgroundColor, setCanvasBackgroundColor } = useBackground();
+  const { brandAssets, addColor, removeColor, setLogo } = useBrand();
+  const { isAuthenticated } = useAuth();
   const [colorTab, setColorTab] = useState('quick');
+
+  // Temporary brand state for session
+  const [newColorName, setNewColorName] = useState('');
+  const [newColorHex, setNewColorHex] = useState('#ff4940');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [showLogoInput, setShowLogoInput] = useState(false);
 
   const selectedEl = elements.find(el => el.id === selectedElement);
 
@@ -20,50 +26,209 @@ export function PropertiesPanel() {
     }
   }, [selectedEl]);
 
+  const handleAddSessionColor = () => {
+    if (newColorName.trim() && newColorHex) {
+      addColor({ name: newColorName.trim(), hex: newColorHex });
+      setNewColorName('');
+      setNewColorHex('#ff4940');
+    }
+  };
+
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const logoUrl = URL.createObjectURL(file);
+      setLogo(logoUrl);
+      
+      // Show success notification
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-20 right-6 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+      notification.textContent = 'Logo added successfully!';
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        if (notification.parentNode) {
+          document.body.removeChild(notification);
+        }
+      }, 3000);
+    }
+  };
+
+  const handleLogoFromUrl = () => {
+    if (logoUrl.trim()) {
+      setLogo(logoUrl.trim());
+      setLogoUrl('');
+      setShowLogoInput(false);
+      
+      // Show success notification
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-20 right-6 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+      notification.textContent = 'Logo added from URL!';
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        if (notification.parentNode) {
+          document.body.removeChild(notification);
+        }
+      }, 3000);
+    }
+  };
+
   if (!selectedEl) {
     return (
       <div className="p-3 space-y-3">
         <h2 className="text-xs font-semibold text-white">Properties</h2>
         
-        {/* Canvas Background Controls */}
+        {/* Session Brand Properties */}
         <div className="rounded p-3" style={{ backgroundColor: '#003a63' }}>
-          <h3 className="text-xs font-medium text-gray-300 mb-2 flex items-center">
-            <Monitor className="w-3.5 h-3.5 mr-1.5 text-blue-400" />
-            Canvas Background
-            <div className="ml-2 w-4 h-4 rounded border border-gray-600" 
-              style={{ backgroundColor: canvasBackgroundColor }} 
-            />
+          <h3 className="text-xs font-medium text-gray-300 mb-3 flex items-center">
+            <Palette className="w-3.5 h-3.5 mr-1.5 text-red-400" />
+            {isAuthenticated ? 'Brand Properties' : 'Session Brand'}
           </h3>
           
-          <div className="space-y-2">
-            <div className="grid grid-cols-4 gap-1">
-              {['#ffffff', '#f8f9fa', '#e9ecef', '#000000'].map((color) => (
-                <button
-                  key={color}
-                  onClick={() => setCanvasBackgroundColor(color)}
-                  className={`w-6 h-6 rounded border-2 hover:scale-110 transition-transform ${
-                    canvasBackgroundColor === color ? 'border-blue-400' : 'border-gray-600'
-                  }`}
-                  style={{ backgroundColor: color }}
-                  title={color}
+          {!isAuthenticated && (
+            <div className="mb-3 p-2 bg-blue-500/10 border border-blue-500/20 rounded text-xs text-blue-300">
+              💡 Define brand colors for this session. Sign up to save permanently!
+            </div>
+          )}
+          
+          {/* Brand Colors */}
+          <div className="space-y-3">
+            <div>
+              <div className="text-xs text-gray-400 mb-2">Brand Colors ({brandAssets.colors.length})</div>
+              
+              {/* Existing Colors */}
+              {brandAssets.colors.length > 0 && (
+                <div className="grid grid-cols-4 gap-1 mb-3">
+                  {brandAssets.colors.map((color) => (
+                    <div key={color.name} className="relative group">
+                      <div
+                        className="w-8 h-8 rounded border border-gray-600 cursor-pointer"
+                        style={{ backgroundColor: color.hex }}
+                        title={`${color.name}: ${color.hex}`}
+                      />
+                      <button
+                        onClick={() => removeColor(color.name)}
+                        className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-2.5 h-2.5 text-white" />
+                      </button>
+                      <span className="text-xs text-gray-500 mt-0.5 block truncate text-center">
+                        {color.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Add New Color */}
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  placeholder="Color name (e.g., Primary)"
+                  value={newColorName}
+                  onChange={(e) => setNewColorName(e.target.value)}
+                  className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs"
                 />
-              ))}
+                <div className="flex space-x-2">
+                  <input
+                    type="color"
+                    value={newColorHex}
+                    onChange={(e) => setNewColorHex(e.target.value)}
+                    className="w-8 h-8 bg-transparent cursor-pointer rounded"
+                  />
+                  <input
+                    type="text"
+                    value={newColorHex}
+                    onChange={(e) => setNewColorHex(e.target.value)}
+                    className="flex-1 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs"
+                    placeholder="#ff4940"
+                  />
+                  <button
+                    onClick={handleAddSessionColor}
+                    disabled={!newColorName.trim()}
+                    className={`px-2 py-1 rounded text-white text-xs transition-colors ${
+                      newColorName.trim() 
+                        ? 'hover:opacity-80' 
+                        : 'opacity-50 cursor-not-allowed'
+                    }`}
+                    style={{ backgroundColor: '#ff4940' }}
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
             </div>
             
-            <div className="flex items-center space-x-2">
-              <input
-                type="color"
-                value={canvasBackgroundColor}
-                onChange={(e) => setCanvasBackgroundColor(e.target.value)}
-                className="w-8 h-8 bg-transparent cursor-pointer rounded"
-              />
-              <input
-                type="text"
-                value={canvasBackgroundColor}
-                onChange={(e) => setCanvasBackgroundColor(e.target.value)}
-                className="flex-1 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs"
-                placeholder="#ffffff"
-              />
+            {/* Brand Logo */}
+            <div>
+              <div className="text-xs text-gray-400 mb-2">Brand Logo</div>
+              
+              {brandAssets.logo && (
+                <div className="mb-2 p-2 bg-gray-700 rounded border border-gray-600">
+                  <img 
+                    src={brandAssets.logo} 
+                    alt="Brand logo" 
+                    className="w-full h-12 object-contain rounded"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                {/* Upload Logo */}
+                <label className="block">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
+                  <div className="flex items-center justify-center space-x-2 p-2 border border-dashed border-gray-600 rounded cursor-pointer hover:border-red-400 transition-colors">
+                    <Upload className="w-3 h-3 text-gray-400" />
+                    <span className="text-xs text-gray-400">Upload Logo</span>
+                  </div>
+                </label>
+                
+                {/* URL Input */}
+                {!showLogoInput ? (
+                  <button
+                    onClick={() => setShowLogoInput(true)}
+                    className="w-full flex items-center justify-center space-x-2 p-2 border border-dashed border-gray-600 rounded hover:border-red-400 transition-colors"
+                  >
+                    <Image className="w-3 h-3 text-gray-400" />
+                    <span className="text-xs text-gray-400">Add from URL</span>
+                  </button>
+                ) : (
+                  <div className="flex space-x-1">
+                    <input
+                      type="url"
+                      placeholder="Logo URL"
+                      value={logoUrl}
+                      onChange={(e) => setLogoUrl(e.target.value)}
+                      className="flex-1 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs"
+                    />
+                    <button
+                      onClick={handleLogoFromUrl}
+                      disabled={!logoUrl.trim()}
+                      className="px-2 py-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-xs"
+                    >
+                      Add
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowLogoInput(false);
+                        setLogoUrl('');
+                      }}
+                      className="px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -94,7 +259,7 @@ export function PropertiesPanel() {
     ...brandAssets.colors.map(color => color.hex),
     // Default fallback colors if no brand colors are set
     ...(brandAssets.colors.length === 0 ? ['#ff4940', '#002e51', '#004080', '#ffffff', '#000000', '#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'] : [])
-  ].slice(0, 10); // Limit to 10 colors for UI consistency
+  ].slice(0, 10);
 
   return (
     <div className="p-3 space-y-3 max-h-full overflow-y-auto">

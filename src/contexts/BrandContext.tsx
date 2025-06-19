@@ -35,7 +35,12 @@ interface BrandContextType {
 const BrandContext = createContext<BrandContextType | undefined>(undefined);
 
 const defaultBrandAssets: BrandAssets = {
-  colors: [], // Start with empty colors array
+  colors: [
+    // Provide some starter colors for guests
+    { name: 'Koech Red', hex: '#ff4940' },
+    { name: 'Koech Navy', hex: '#002e51' },
+    { name: 'Koech Blue', hex: '#004080' },
+  ],
   fonts: [
     { name: 'Inter', url: '', family: 'Inter, sans-serif' },
     { name: 'Roboto', url: '', family: 'Roboto, sans-serif' },
@@ -119,6 +124,22 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       ...prev,
       colors: [...prev.colors, color],
     }));
+    
+    // Show helpful tip for guest users
+    if (!isAuthenticated && typeof window !== 'undefined') {
+      setTimeout(() => {
+        const notification = document.createElement('div');
+        notification.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm max-w-xs text-center';
+        notification.innerHTML = '💡 Brand color added for this session! <br/><span class="text-xs opacity-80">Sign up to save permanently</span>';
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          if (notification.parentNode) {
+            document.body.removeChild(notification);
+          }
+        }, 3000);
+      }, 100);
+    }
   };
 
   const removeColor = (name: string) => {
