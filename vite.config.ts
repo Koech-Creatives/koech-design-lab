@@ -75,7 +75,12 @@ export default defineConfig(({ command, mode }) => {
     preview: {
       port: process.env.PORT ? parseInt(process.env.PORT) : 4173,
       host: '0.0.0.0',
-      strictPort: true
+      strictPort: true,
+      allowedHosts: [
+        'frames-koech-labs.onrender.com',
+        'koech-frames-app.onrender.com', // Alternative naming
+        '.onrender.com' // Allow all Render subdomains
+      ]
     },
     
     // Optimization
