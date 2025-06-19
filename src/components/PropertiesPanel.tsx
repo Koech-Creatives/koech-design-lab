@@ -88,7 +88,13 @@ export function PropertiesPanel() {
     updateElement(selectedElement, { [property]: value });
   };
 
-  const brandColorPalette = ['#ff4940', '#002e51', '#004080', '#ffffff', '#000000', '#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
+  // Create dynamic brand color palette
+  const brandColorPalette = [
+    // Brand colors from user's brand assets
+    ...brandAssets.colors.map(color => color.hex),
+    // Default fallback colors if no brand colors are set
+    ...(brandAssets.colors.length === 0 ? ['#ff4940', '#002e51', '#004080', '#ffffff', '#000000', '#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'] : [])
+  ].slice(0, 10); // Limit to 10 colors for UI consistency
 
   return (
     <div className="p-3 space-y-3 max-h-full overflow-y-auto">
@@ -222,7 +228,7 @@ export function PropertiesPanel() {
           <div className="flex items-center space-x-2">
             <input
               type="color"
-              value={selectedEl.type === 'text' ? selectedEl.color || '#000000' : selectedEl.backgroundColor || '#6366f1'}
+              value={selectedEl.type === 'text' ? selectedEl.color || '#000000' : selectedEl.backgroundColor || '#000000'}
               onChange={(e) => {
                 if (selectedEl.type === 'text') {
                   handleDirectUpdate('color', e.target.value);
@@ -234,7 +240,7 @@ export function PropertiesPanel() {
             />
             <input
               type="text"
-              value={selectedEl.type === 'text' ? selectedEl.color || '#000000' : selectedEl.backgroundColor || '#6366f1'}
+              value={selectedEl.type === 'text' ? selectedEl.color || '#000000' : selectedEl.backgroundColor || '#000000'}
               onChange={(e) => {
                 if (selectedEl.type === 'text') {
                   handleDirectUpdate('color', e.target.value);

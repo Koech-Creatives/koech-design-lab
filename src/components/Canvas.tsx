@@ -178,7 +178,7 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
               y: centerY,
               width: 100,
               height: 2,
-              backgroundColor: '#e5e7eb',
+              backgroundColor: '#000000',
             });
           }
           break;
@@ -278,7 +278,7 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
               y: Math.max(0, y),
               width: 150,
               height: 3,
-              backgroundColor: '#6366f1',
+              backgroundColor: '#000000',
             });
             break;
           default:
@@ -288,8 +288,8 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
               y: Math.max(0, y),
               width: 100,
               height: 100,
-              color: '#6366f1',
-              backgroundColor: '#6366f1',
+              color: '#000000',
+              backgroundColor: '#000000',
             });
             break;
         }

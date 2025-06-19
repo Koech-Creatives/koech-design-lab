@@ -1,12 +1,29 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Eye, EyeOff, Mail, Lock, User, UserPlus, Phone, ExternalLink } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, UserPlus, Phone, ExternalLink, Palette, Upload, ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface SignupPageProps {
   onSwitchToLogin: () => void;
 }
 
+interface BrandData {
+  brandName: string;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  logo: string;
+  industry: string;
+  additionalColors: Array<{ name: string; hex: string }>;
+}
+
 export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
+  // Step management
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 3;
+
+  // Form data
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -15,6 +32,19 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
     password: '',
     confirmPassword: ''
   });
+
+  // Brand data
+  const [brandData, setBrandData] = useState<BrandData>({
+    brandName: '',
+    primaryColor: '#ff4940',
+    secondaryColor: '#002e51',
+    accentColor: '#6366f1',
+    logo: '',
+    industry: '',
+    additionalColors: []
+  });
+
+  // UI state
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -26,6 +56,13 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const { register } = useAuth();
+
+  // Industries list
+  const industries = [
+    'Technology', 'Healthcare', 'Finance', 'Education', 'Retail', 'Manufacturing',
+    'Real Estate', 'Food & Beverage', 'Marketing & Advertising', 'Consulting',
+    'Non-profit', 'Entertainment', 'Travel & Tourism', 'Automotive', 'Other'
+  ];
 
   // Debug logging function
   const addDebugLog = (step: string, data: any, type: 'info' | 'success' | 'error' = 'info') => {
@@ -39,7 +76,7 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
     setDebugInfo(prev => [...prev, logEntry]);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
@@ -48,95 +85,130 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
     if (success) setSuccess('');
   };
 
+  const handleBrandInputChange = (field: keyof BrandData, value: string) => {
+    setBrandData(prev => ({ ...prev, [field]: value }));
+    if (error) setError('');
+  };
+
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const logoUrl = URL.createObjectURL(file);
+      setBrandData(prev => ({ ...prev, logo: logoUrl }));
+    }
+  };
+
+  const addCustomColor = () => {
+    const colorName = prompt('Enter a name for this color:');
+    if (colorName) {
+      const newColor = { name: colorName, hex: '#000000' };
+      setBrandData(prev => ({
+        ...prev,
+        additionalColors: [...prev.additionalColors, newColor]
+      }));
+    }
+  };
+
+  const updateAdditionalColor = (index: number, field: 'name' | 'hex', value: string) => {
+    setBrandData(prev => ({
+      ...prev,
+      additionalColors: prev.additionalColors.map((color, i) => 
+        i === index ? { ...color, [field]: value } : color
+      )
+    }));
+  };
+
+  const removeAdditionalColor = (index: number) => {
+    setBrandData(prev => ({
+      ...prev,
+      additionalColors: prev.additionalColors.filter((_, i) => i !== index)
+    }));
+  };
+
+  const validateStep = (step: number) => {
+    switch (step) {
+      case 1:
+        // Basic information validation
+        if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.confirmPassword) {
+          return 'Please fill in all required fields';
+        }
+        if (formData.firstName.length < 2) return 'First name must be at least 2 characters';
+        if (formData.lastName.length < 2) return 'Last name must be at least 2 characters';
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) return 'Please enter a valid email address';
+        
+        if (formData.phone && formData.phone.length > 0) {
+          const cleanPhone = formData.phone.replace(/[\s\-\(\)]/g, '');
+          if (!/^\+?[\d]{10,15}$/.test(cleanPhone)) {
+            return 'Please enter a valid phone number (10-15 digits)';
+          }
+        }
+        
+        if (formData.password.length < 8) return 'Password must be at least 8 characters';
+        if (formData.password !== formData.confirmPassword) return 'Passwords do not match';
+        return null;
+
+      case 2:
+        // Brand information validation (optional but recommended)
+        if (!brandData.brandName.trim()) return 'Please enter your brand name';
+        return null;
+
+      case 3:
+        // Terms and conditions validation
+        if (!agreedToTerms) return 'Please agree to the Terms and Conditions';
+        if (!agreedToPrivacy) return 'Please agree to the Privacy Policy';
+        return null;
+
+      default:
+        return null;
+    }
+  };
+
   const validateForm = () => {
-    console.log('🔍 [VALIDATION] Starting form validation with:', {
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-      phone: formData.phone || 'empty',
-      passwordLength: formData.password.length,
-      confirmPasswordLength: formData.confirmPassword.length,
-      agreedToTerms,
-      agreedToPrivacy
-    });
-    addDebugLog('Form Validation Started', formData, 'info');
-
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.confirmPassword) {
-      const missingFields = [];
-      if (!formData.firstName) missingFields.push('firstName');
-      if (!formData.lastName) missingFields.push('lastName');
-      if (!formData.email) missingFields.push('email');
-      if (!formData.password) missingFields.push('password');
-      if (!formData.confirmPassword) missingFields.push('confirmPassword');
-      
-      addDebugLog('Validation Failed - Missing Fields', { missingFields }, 'error');
-      return 'Please fill in all required fields';
+    // Validate all steps for final submission
+    for (let step = 1; step <= totalSteps; step++) {
+      const stepError = validateStep(step);
+      if (stepError) return stepError;
     }
-
-    if (!agreedToTerms) {
-      addDebugLog('Validation Failed - Terms Not Agreed', {}, 'error');
-      return 'Please agree to the Terms and Conditions';
-    }
-
-    if (!agreedToPrivacy) {
-      addDebugLog('Validation Failed - Privacy Not Agreed', {}, 'error');
-      return 'Please agree to the Privacy Policy';
-    }
-
-    if (formData.firstName.length < 2) {
-      addDebugLog('Validation Failed - First Name Too Short', { length: formData.firstName.length }, 'error');
-      return 'First name must be at least 2 characters';
-    }
-
-    if (formData.lastName.length < 2) {
-      addDebugLog('Validation Failed - Last Name Too Short', { length: formData.lastName.length }, 'error');
-      return 'Last name must be at least 2 characters';
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      addDebugLog('Validation Failed - Invalid Email', { email: formData.email }, 'error');
-      return 'Please enter a valid email address';
-    }
-
-    if (formData.phone && formData.phone.length > 0) {
-      // Basic phone validation - remove spaces, dashes, parentheses
-      const cleanPhone = formData.phone.replace(/[\s\-\(\)]/g, '');
-      if (!/^\+?[\d]{10,15}$/.test(cleanPhone)) {
-        addDebugLog('Validation Failed - Invalid Phone', { phone: formData.phone, cleanPhone }, 'error');
-        return 'Please enter a valid phone number (10-15 digits)';
-      }
-    }
-
-    if (formData.password.length < 8) {
-      addDebugLog('Validation Failed - Password Too Short', { length: formData.password.length }, 'error');
-      return 'Password must be at least 8 characters';
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      addDebugLog('Validation Failed - Passwords Do Not Match', {}, 'error');
-      return 'Passwords do not match';
-    }
-
-    addDebugLog('Form Validation Passed', { 
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-      phone: formData.phone || 'Not provided',
-      passwordLength: formData.password.length,
-      agreedToTerms,
-      agreedToPrivacy
-    }, 'success');
-
     return null;
+  };
+
+  const handleNext = () => {
+    const stepError = validateStep(currentStep);
+    if (stepError) {
+      setError(stepError);
+      return;
+    }
+    setError('');
+    setCurrentStep(prev => Math.min(prev + 1, totalSteps));
+  };
+
+  const handlePrevious = () => {
+    setError('');
+    setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // If not on the last step, validate current step and move to next
+    if (currentStep < totalSteps) {
+      const stepError = validateStep(currentStep);
+      if (stepError) {
+        setError(stepError);
+        return;
+      }
+      setError('');
+      setCurrentStep(prev => prev + 1);
+      return;
+    }
+
     console.log('🔄 [SIGNUP] Form submitted', { 
       email: formData.email,
       hasTerms: agreedToTerms,
-      hasPrivacy: agreedToPrivacy 
+      hasPrivacy: agreedToPrivacy,
+      brandData: brandData
     });
     
     setError('');
@@ -148,6 +220,7 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
       firstName: formData.firstName,
       lastName: formData.lastName,
       hasPhone: !!formData.phone,
+      brandName: brandData.brandName,
       agreedToTerms,
       agreedToPrivacy
     }, 'info');
@@ -156,6 +229,7 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
     if (validationError) {
       console.error('🔴 [SIGNUP] Validation failed:', validationError);
       setError(validationError);
+      toast.error(validationError);
       return;
     }
 
@@ -168,7 +242,8 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
         email: formData.email,
         firstName: formData.firstName,
         lastName: formData.lastName,
-        hasPhone: !!formData.phone
+        hasPhone: !!formData.phone,
+        brandData: brandData
       });
 
       const result = await register(
@@ -184,10 +259,42 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
 
       if (result.success) {
         console.log('🎉 [SIGNUP] Registration successful!');
-        setSuccess('Account created successfully! Redirecting to canvas...');
+        
+        // Show success toast with email confirmation message
+        toast.success('🎉 Account created successfully! Please check your email to confirm your account.', {
+          position: "top-right",
+          autoClose: 8000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+        
+        // Store brand data in localStorage temporarily for the BrandContext to pick up
+        if (brandData.brandName) {
+          localStorage.setItem('pendingBrandData', JSON.stringify({
+            name: brandData.brandName,
+            colors: [
+              { name: 'Primary', hex: brandData.primaryColor },
+              { name: 'Secondary', hex: brandData.secondaryColor },
+              { name: 'Accent', hex: brandData.accentColor },
+              ...brandData.additionalColors
+            ],
+            fonts: [
+              { name: 'Inter', url: '', family: 'Inter, sans-serif' },
+              { name: 'Roboto', url: '', family: 'Roboto, sans-serif' },
+              { name: 'Poppins', url: '', family: 'Poppins, sans-serif' },
+            ],
+            logo: brandData.logo,
+            industry: brandData.industry
+          }));
+        }
+        
+        setSuccess('Account created successfully! Please check your email to confirm your account.');
         addDebugLog('Signup Successful', { 
           email: formData.email,
-          message: 'User will be redirected to canvas'
+          brandName: brandData.brandName,
+          message: 'User needs to confirm email before accessing canvas'
         }, 'success');
         
         // Clear form on success
@@ -199,13 +306,31 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
           password: '',
           confirmPassword: ''
         });
+        setBrandData({
+          brandName: '',
+          primaryColor: '#ff4940',
+          secondaryColor: '#002e51',
+          accentColor: '#6366f1',
+          logo: '',
+          industry: '',
+          additionalColors: []
+        });
 
-        // Navigate to canvas after successful signup
-        // The AuthContext will handle this automatically as the user becomes authenticated
-        addDebugLog('Navigation Triggered', { destination: 'canvas' }, 'success');
+        // Switch to login page after successful registration
+        // User needs to confirm email before they can log in
+        addDebugLog('Email Confirmation Required', { 
+          email: formData.email,
+          message: 'User will be redirected to login page to sign in after email confirmation'
+        }, 'info');
+        
+        // Show login page after a delay so user can see the success message
+        setTimeout(() => {
+          onSwitchToLogin();
+        }, 3000);
       } else {
         console.error('🔴 [SIGNUP] Registration failed:', result.error);
         setError(result.error || 'Registration failed');
+        toast.error(result.error || 'Registration failed');
         addDebugLog('Signup Failed', { 
           error: result.error,
           email: formData.email
@@ -215,6 +340,7 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
       const errorMessage = error?.message || 'An unexpected error occurred';
       console.error('💥 [SIGNUP] Exception caught:', error);
       setError(errorMessage);
+      toast.error(errorMessage);
       addDebugLog('Signup Exception', { 
         error: errorMessage,
         stack: error?.stack,
@@ -234,7 +360,7 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
         background: 'linear-gradient(135deg, #002e51 0%, #002e51 100%)' 
       }}
     >
-      <div className="max-w-md w-full space-y-8">
+      <div className="max-w-lg w-full space-y-8">
         {/* Logo/Brand */}
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ backgroundColor: '#ff4940' }}>
@@ -242,6 +368,38 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
           </div>
           <h2 className="text-3xl font-bold text-white">Create Account</h2>
           <p className="mt-2 text-gray-400">Join Koech Design Lab today</p>
+        </div>
+
+        {/* Progress Steps */}
+        <div className="flex justify-center space-x-2 mb-8">
+          {[1, 2, 3].map((step) => (
+            <div key={step} className="flex items-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                step === currentStep 
+                  ? 'bg-red-500 text-white' 
+                  : step < currentStep 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-gray-600 text-gray-300'
+                }`}>
+                {step < currentStep ? <CheckCircle className="w-4 h-4" /> : step}
+              </div>
+              {step < 3 && <div className={`w-12 h-0.5 mx-2 ${step < currentStep ? 'bg-green-500' : 'bg-gray-600'}`} />}
+            </div>
+          ))}
+        </div>
+
+        {/* Step Titles */}
+        <div className="text-center mb-6">
+          <h3 className="text-xl font-semibold text-white">
+            {currentStep === 1 && 'Personal Information'}
+            {currentStep === 2 && 'Brand Details'}
+            {currentStep === 3 && 'Terms & Conditions'}
+          </h3>
+          <p className="text-gray-400 text-sm mt-1">
+            {currentStep === 1 && 'Tell us about yourself'}
+            {currentStep === 2 && 'Set up your brand identity'}
+            {currentStep === 3 && 'Review and accept our terms'}
+          </p>
         </div>
 
         {/* Signup Form */}
@@ -457,6 +615,9 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
             {success && (
               <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
                 <p className="text-sm text-green-400">{success}</p>
+                <p className="text-xs text-green-300 mt-1">
+                  You'll be redirected to the login page in a few seconds. After confirming your email, you can sign in to access the canvas.
+                </p>
               </div>
             )}
 
@@ -541,6 +702,24 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
       {showPrivacyModal && (
         <PrivacyModal onClose={() => setShowPrivacyModal(false)} />
       )}
+
+              <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="dark"
+          toastStyle={{
+            backgroundColor: '#003a63',
+            color: '#ffffff',
+            border: '1px solid #ff4940'
+          }}
+        />
     </div>
   );
 }

@@ -709,7 +709,7 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
     const shapeStyle = {
       width: '100%',
       height: '100%',
-      backgroundColor: element.backgroundColor || element.color || '#6366f1',
+      backgroundColor: element.backgroundColor || element.color || '#000000',
     };
 
     switch (element.type) {
@@ -763,7 +763,7 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
           <svg width="100%" height="100%" viewBox="0 0 100 100">
             <path 
               d="M50,85 C20,60 20,30 50,45 C80,30 80,60 50,85 Z" 
-              fill={element.backgroundColor || element.color || '#6366f1'} 
+              fill={element.backgroundColor || element.color || '#000000'} 
             />
           </svg>
         );
@@ -773,7 +773,7 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
             style={{
               width: '100%',
               height: '100%',
-              backgroundColor: element.backgroundColor || element.color || '#6366f1',
+              backgroundColor: element.backgroundColor || element.color || '#000000',
               borderRadius: '2px',
             }}
           />
@@ -783,7 +783,7 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
           <svg width="100%" height="100%" viewBox="0 0 100 100">
             <path 
               d={element.path} 
-              fill={element.backgroundColor || element.color || '#6366f1'} 
+              fill={element.backgroundColor || element.color || '#000000'} 
             />
           </svg>
         );
@@ -842,7 +842,7 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
           <div
             className="w-full h-full flex items-center justify-center"
             style={{
-              backgroundColor: element.backgroundColor || element.color || '#6366f1',
+              backgroundColor: element.backgroundColor || element.color || '#000000',
               color: 'white',
               fontSize: `${element.fontSize || 16}px`,
               fontWeight: element.fontWeight || 'medium',
@@ -878,7 +878,7 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
           <div
             className="w-full h-full flex items-center justify-center"
             style={{
-              color: element.color || '#6366f1',
+              color: element.color || '#000000',
             }}
           >
             {renderIcon(element.content)}
@@ -903,7 +903,7 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
           <div
             className="w-full h-full flex items-center justify-center"
             style={{
-              color: element.color || '#6366f1',
+              color: element.color || '#000000',
               fontSize: `${element.fontSize || 14}px`,
               fontWeight: element.fontWeight || 'medium',
               textAlign: 'center',

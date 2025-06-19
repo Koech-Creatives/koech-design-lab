@@ -436,7 +436,7 @@ export function ElementsPanel({ onAddElement }: ElementsPanelProps) {
                     iconName: icon.name,
                     width: 60,
                     height: 60,
-                    color: '#6366f1'
+                    color: '#000000'
                   })}
                   className="p-2 rounded text-center transition-colors hover:bg-gray-700"
                   style={{ backgroundColor: '#003a63' }}
@@ -463,7 +463,7 @@ export function ElementsPanel({ onAddElement }: ElementsPanelProps) {
                   type: shape.type,
                   width: 100,
                   height: 100,
-                  backgroundColor: '#6366f1'
+                  backgroundColor: '#000000'
                 })}
                 className="p-2 rounded text-center transition-colors hover:bg-gray-700"
                 style={{ backgroundColor: '#003a63' }}

@@ -85,6 +85,32 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isAuthenticated && user) {
       loadBrandFromSupabase();
+      
+      // Check for pending brand data from signup
+      const pendingBrandData = localStorage.getItem('pendingBrandData');
+      if (pendingBrandData) {
+        try {
+          const brandData = JSON.parse(pendingBrandData);
+          setBrandAssets(prev => ({
+            ...prev,
+            colors: brandData.colors || [],
+            fonts: brandData.fonts || prev.fonts,
+            logo: brandData.logo || prev.logo
+          }));
+          
+          // Save to Supabase immediately
+          setTimeout(() => {
+            saveBrandToSupabase();
+          }, 1000);
+          
+          // Clear pending data
+          localStorage.removeItem('pendingBrandData');
+          console.log('✅ [BRAND] Pending brand data applied:', brandData);
+        } catch (error) {
+          console.error('🔴 [BRAND] Failed to parse pending brand data:', error);
+          localStorage.removeItem('pendingBrandData');
+        }
+      }
     }
   }, [isAuthenticated, user]);
 

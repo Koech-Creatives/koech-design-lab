@@ -76,6 +76,13 @@ export function Header({
   }, [elements, selectedPlatform, saveBrandToSupabase, saveProject]);
 
   const exportCanvas = async (format: 'png' | 'jpg' | 'pdf' | 'svg' = 'png') => {
+    // Check if canvas is empty (no elements)
+    if (elements.length === 0) {
+      showNotification('Cannot export empty canvas. Add some elements first!', '#dc2626');
+      setExportMenuOpen(false);
+      return;
+    }
+
     const canvasElement = document.querySelector('[data-canvas="true"]') as HTMLElement;
     if (!canvasElement) return;
     
@@ -406,12 +413,27 @@ export function Header({
             
             {exportMenuOpen && (
               <div className="absolute right-0 top-full mt-1 w-64 rounded-md shadow-lg py-1 z-50" style={{ backgroundColor: '#002e51', border: '1px solid #004080' }}>
+                {elements.length === 0 && (
+                  <div className="px-3 py-2 text-xs text-gray-400 border-b border-gray-600">
+                    <span className="font-medium text-red-400">⚠️ Canvas is empty</span>
+                    <div className="text-xs mt-1">Add elements to enable export</div>
+                  </div>
+                )}
                 {exportOptions.map((option) => (
                   <button
                     key={option.format}
                     onClick={() => exportCanvas(option.format)}
-                    className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
+                    disabled={elements.length === 0}
+                    className={`w-full text-left px-3 py-2 text-xs transition-colors ${
+                      elements.length === 0 
+                        ? 'text-gray-500 cursor-not-allowed opacity-50' 
+                        : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                    }`}
                   >
+                    <div className="flex flex-col">
+                      <span className="font-medium">{option.label}</span>
+                      <span className="text-xs opacity-75">{option.description}</span>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -555,9 +577,16 @@ export function Header({
           </div>
           <button 
             onClick={() => exportCanvas('png')}
-            className="p-1.5 rounded transition-colors text-white hover:opacity-80"
-            style={{ backgroundColor: '#ff4940' }}
-            title="Export as PNG"
+            disabled={elements.length === 0}
+            className={`p-1.5 rounded transition-colors ${
+              elements.length === 0 
+                ? 'text-gray-500 cursor-not-allowed opacity-50' 
+                : 'text-white hover:opacity-80'
+            }`}
+            style={{ 
+              backgroundColor: elements.length === 0 ? '#666666' : '#ff4940' 
+            }}
+            title={elements.length === 0 ? "Add elements to enable export" : "Export as PNG"}
           >
             <Download className="w-3.5 h-3.5" />
           </button>

@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { LoginPage } from './LoginPage';
-import { SignupPage } from './SignupPage';
+import { SignupPageBrandAware } from './SignupPageBrandAware';
 import { DebugPanel } from './DebugPanel';
 
 interface AuthWrapperProps {
@@ -20,7 +20,9 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
     console.log('✅ AuthWrapper: Auth context accessed successfully:', {
       isAuthenticated: authContext?.isAuthenticated,
       isLoading: authContext?.isLoading,
-      hasUser: !!authContext?.user
+      hasUser: !!authContext?.user,
+      userEmail: authContext?.user?.email,
+      userId: authContext?.user?.id
     });
   } catch (error) {
     console.error('🔴 AuthWrapper: Error accessing auth context:', error);
@@ -47,8 +49,17 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
   
   const { isAuthenticated, isLoading } = authContext;
 
+  console.log('🔍 AuthWrapper: Authentication decision:', {
+    isLoading,
+    isAuthenticated,
+    willShowLoading: isLoading,
+    willShowAuth: !isAuthenticated && !isLoading,
+    willShowApp: isAuthenticated && !isLoading
+  });
+
   // Show loading spinner while checking authentication
   if (isLoading) {
+    console.log('🔄 AuthWrapper: Showing loading spinner');
     return (
       <>
         <div 
@@ -70,12 +81,13 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
 
   // Show login/signup if not authenticated
   if (!isAuthenticated) {
+    console.log('🔐 AuthWrapper: User not authenticated, showing auth pages. showLogin:', showLogin);
     return (
       <>
         {showLogin ? (
           <LoginPage onSwitchToSignup={() => setShowLogin(false)} />
         ) : (
-          <SignupPage onSwitchToLogin={() => setShowLogin(true)} />
+          <SignupPageBrandAware onSwitchToLogin={() => setShowLogin(true)} />
         )}
         {/* Debug Panel */}
         <DebugPanel />
@@ -84,6 +96,7 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
   }
 
   // Show the main app if authenticated
+  console.log('✅ AuthWrapper: User authenticated, showing main app');
   return (
     <>
       {children}
