@@ -123,39 +123,45 @@ export function PropertiesPanel() {
               
               {/* Add New Color */}
               <div className="space-y-2">
-                <input
-                  type="text"
-                  placeholder="Color name (e.g., Primary)"
-                  value={newColorName}
-                  onChange={(e) => setNewColorName(e.target.value)}
-                  className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs"
-                />
                 <div className="flex space-x-2">
                   <input
                     type="color"
                     value={newColorHex}
-                    onChange={(e) => setNewColorHex(e.target.value)}
-                    className="w-8 h-8 bg-transparent cursor-pointer rounded"
+                    onChange={(e) => {
+                      setNewColorHex(e.target.value);
+                      // Auto-add color to brand when color picker changes
+                      if (isAuthenticated && e.target.value !== newColorHex) {
+                        const colorExists = brandAssets.colors.find(c => c.hex === e.target.value);
+                        if (!colorExists) {
+                          const colorName = `Color ${brandAssets.colors.length + 1}`;
+                          addColor({ name: colorName, hex: e.target.value });
+                          console.log('🎨 [BRAND] Auto-added color from picker:', colorName, e.target.value);
+                        }
+                      }
+                    }}
+                    className="w-12 h-8 bg-blue-500/10 cursor-pointer rounded border border-gray-600"
                   />
                   <input
                     type="text"
                     value={newColorHex}
                     onChange={(e) => setNewColorHex(e.target.value)}
-                    className="flex-1 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs"
+                    onBlur={(e) => {
+                      // Auto-add color to brand when hex input is blurred with valid hex
+                      if (isAuthenticated && /^#[0-9A-F]{6}$/i.test(e.target.value)) {
+                        const colorExists = brandAssets.colors.find(c => c.hex === e.target.value);
+                        if (!colorExists) {
+                          const colorName = `Color ${brandAssets.colors.length + 1}`;
+                          addColor({ name: colorName, hex: e.target.value });
+                          console.log('🎨 [BRAND] Auto-added color from hex input:', colorName, e.target.value);
+                        }
+                      }
+                    }}
+                    className="w-1/2 px-1 py-1 bg-blue-500/10 border border-gray-600 rounded text-white text-xs"
                     placeholder="#ff4940"
                   />
-                  <button
-                    onClick={handleAddSessionColor}
-                    disabled={!newColorName.trim()}
-                    className={`px-2 py-1 rounded text-white text-xs transition-colors ${
-                      newColorName.trim() 
-                        ? 'hover:opacity-80' 
-                        : 'opacity-50 cursor-not-allowed'
-                    }`}
-                    style={{ backgroundColor: '#ff4940' }}
-                  >
-                    <Plus className="w-3 h-3" />
-                  </button>
+                  <div className="text-xs text-gray-400 self-center">
+                    {isAuthenticated ? 'Auto-adds to brand' : 'For brand colors'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -251,15 +257,29 @@ export function PropertiesPanel() {
   const handleDirectUpdate = (property: string, value: any) => {
     if (!selectedElement) return;
     updateElement(selectedElement, { [property]: value });
+    
+    // Auto-add color to brand if it's a color property and user is authenticated
+    if (isAuthenticated && (property === 'color' || property === 'backgroundColor') && typeof value === 'string' && value.startsWith('#')) {
+      if (brandAssets.colors && !brandAssets.colors.find(c => c.hex === value)) {
+        // Generate a name for the color
+        const colorName = `Color ${brandAssets.colors.length + 1}`;
+        addColor({ name: colorName, hex: value });
+        console.log('🎨 [BRAND] Auto-added new color to brand:', colorName, value);
+      }
+    }
   };
 
   // Create dynamic brand color palette
-  const brandColorPalette = [
-    // Brand colors from user's brand assets
-    ...brandAssets.colors.map(color => color.hex),
-    // Default fallback colors if no brand colors are set
-    ...(brandAssets.colors.length === 0 ? ['#ff4940', '#002e51', '#004080', '#ffffff', '#000000', '#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'] : [])
-  ].slice(0, 10);
+  const brandColorPalette = (() => {
+    if (isAuthenticated) {
+      // For authenticated users, only show their brand colors
+      return brandAssets.colors.map(color => color.hex);
+    }
+    // For guests, show Koech Labs default colors
+    return ['#ff4940', '#002e51', '#004080', '#ffffff', '#000000', '#6366f1', '#ff4940', '#10b981', '#f59e0b', '#ef4444'];
+  })().slice(0, 10);
+
+  const hasBrandColors = brandColorPalette.length > 0;
 
   return (
     <div className="p-3 space-y-3 max-h-full overflow-y-auto">
@@ -369,26 +389,54 @@ export function PropertiesPanel() {
         </h3>
         
         <div className="space-y-2">
-          <div className="grid grid-cols-5 gap-1">
-            {brandColorPalette.map((color) => (
-              <button
-                key={color}
-                onClick={() => {
-                  if (selectedEl.type === 'text') {
-                    handleDirectUpdate('color', color);
-                  } else {
-                    handleDirectUpdate('backgroundColor', color);
-                  }
-                }}
-                className={`w-6 h-6 rounded border-2 transition-all ${
-                  (selectedEl.type === 'text' ? selectedEl.color : selectedEl.backgroundColor) === color 
-                    ? 'border-white' : 'border-gray-600'
-                }`}
-                style={{ backgroundColor: color }}
-                title={color}
-              />
-            ))}
-          </div>
+          {hasBrandColors ? (
+            <div className="grid grid-cols-5 gap-1">
+              {brandColorPalette.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => {
+                    if (selectedEl.type === 'text') {
+                      handleDirectUpdate('color', color);
+                    } else {
+                      handleDirectUpdate('backgroundColor', color);
+                    }
+                  }}
+                  className={`w-6 h-6 rounded border-2 transition-all ${
+                    (selectedEl.type === 'text' ? selectedEl.color : selectedEl.backgroundColor) === color 
+                      ? 'border-white' : 'border-gray-600'
+                  }`}
+                  style={{ backgroundColor: color }}
+                  title={color}
+                />
+              ))}
+            </div>
+          ) : isAuthenticated ? (
+            <div className="text-center py-2">
+              <p className="text-xs text-gray-500 mb-2">No brand colors defined</p>
+              <p className="text-xs text-gray-600">Use the color picker below to add colors to your brand</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-5 gap-1">
+              {brandColorPalette.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => {
+                    if (selectedEl.type === 'text') {
+                      handleDirectUpdate('color', color);
+                    } else {
+                      handleDirectUpdate('backgroundColor', color);
+                    }
+                  }}
+                  className={`w-6 h-6 rounded border-2 transition-all ${
+                    (selectedEl.type === 'text' ? selectedEl.color : selectedEl.backgroundColor) === color 
+                      ? 'border-white' : 'border-gray-600'
+                  }`}
+                  style={{ backgroundColor: color }}
+                  title={color}
+                />
+              ))}
+            </div>
+          )}
           
           <div className="flex items-center space-x-2">
             <input

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Canvas } from './components/Canvas';
 import { Sidebar } from './components/Sidebar';
 import { LeftPanel } from './components/LeftPanel';
+import { BottomPropertiesPanel } from './components/BottomPropertiesPanel';
 import { Header } from './components/Header';
 import { FloatingColorPalette } from './components/FloatingColorPalette';
 import { DebugPanel } from './components/DebugPanel';
@@ -17,6 +18,8 @@ import { ProjectProvider } from './contexts/ProjectContext';
 import { GuestProvider } from './contexts/GuestContext';
 import { AuthWrapper } from './components/AuthWrapper';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function App() {
   const [selectedPlatform, setSelectedPlatform] = useState('instagram');
@@ -24,6 +27,7 @@ function App() {
   const [currentFormat, setCurrentFormat] = useState({ name: 'Square 1080x1080', width: 1080, height: 1080 });
   const [showProjectsModal, setShowProjectsModal] = useState(false);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
+  const [panelsCollapsed, setPanelsCollapsed] = useState(false);
 
   // Fix scaling issues on mount
   useEffect(() => {
@@ -62,6 +66,10 @@ function App() {
     };
   }, []);
 
+  const togglePanelsCollapse = () => {
+    setPanelsCollapsed(!panelsCollapsed);
+  };
+
   const AppContent = () => (
     <BrandProvider>
       <CanvasProvider>
@@ -75,7 +83,7 @@ function App() {
                     backgroundColor: '#1a1a1a',
                     zoom: 1,
                     transform: 'none',
-                                         WebkitTransform: 'none',
+                    WebkitTransform: 'none',
                     width: '100vw',
                     height: '100vh',
                     position: 'relative'
@@ -88,18 +96,27 @@ function App() {
                     onOpenTemplates={() => setShowTemplatesModal(true)}
                   />
                   <div className="flex flex-1 overflow-hidden">
-                    <Sidebar 
-                      currentFormat={currentFormat}
-                    />
+                    {!panelsCollapsed && (
+                      <Sidebar 
+                        currentFormat={currentFormat}
+                      />
+                    )}
                     <main className="flex-1 flex flex-col overflow-hidden main-layout" style={{ backgroundColor: '#1a1a1a' }}>
                       <Canvas 
                         platform={selectedPlatform}
                         template={selectedTemplate}
                         onFormatChange={setCurrentFormat}
+                        panelsCollapsed={panelsCollapsed}
+                        onTogglePanelsCollapse={togglePanelsCollapse}
                       />
                     </main>
-                    <LeftPanel platform={selectedPlatform} currentFormat={currentFormat} />
+                    {!panelsCollapsed && (
+                      <LeftPanel platform={selectedPlatform} currentFormat={currentFormat} />
+                    )}
                   </div>
+                  
+                  {/* Bottom Properties Panel */}
+                  <BottomPropertiesPanel canvasFormat={currentFormat} />
                   
                   {/* Floating Color Palette - Always on top when element is selected */}
                   <FloatingColorPalette />
@@ -136,6 +153,22 @@ function App() {
           </AuthWrapper>
         </GuestProvider>
       </AuthProvider>
+      
+      {/* Global Toast Container */}
+      <ToastContainer
+        position="top-center"
+        autoClose={6000}
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+        style={{ zIndex: 9999 }}
+        className="toast-container"
+      />
     </ErrorBoundary>
   );
 }

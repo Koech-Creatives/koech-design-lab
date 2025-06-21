@@ -35,12 +35,7 @@ interface BrandContextType {
 const BrandContext = createContext<BrandContextType | undefined>(undefined);
 
 const defaultBrandAssets: BrandAssets = {
-  colors: [
-    // Provide some starter colors for guests
-    { name: 'Koech Red', hex: '#ff4940' },
-    { name: 'Koech Navy', hex: '#002e51' },
-    { name: 'Koech Blue', hex: '#004080' },
-  ],
+  colors: [], // No default colors - will be loaded from database for authenticated users
   fonts: [
     { name: 'Inter', url: '', family: 'Inter, sans-serif' },
     { name: 'Roboto', url: '', family: 'Roboto, sans-serif' },
@@ -48,7 +43,7 @@ const defaultBrandAssets: BrandAssets = {
   ],
 };
 
-// Load brand assets from localStorage
+// Load brand assets from localStorage (only for guests)
 const loadBrandAssets = (): BrandAssets => {
   try {
     const saved = localStorage.getItem('brandAssets');
@@ -96,6 +91,8 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       if (pendingBrandData) {
         try {
           const brandData = JSON.parse(pendingBrandData);
+          console.log('🎨 [BRAND] Processing pending brand data:', brandData);
+          
           setBrandAssets(prev => ({
             ...prev,
             colors: brandData.colors || [],
@@ -103,14 +100,14 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
             logo: brandData.logo || prev.logo
           }));
           
-          // Save to Supabase immediately
-          setTimeout(() => {
-            saveBrandToSupabase();
+          // Save to Supabase immediately with the brand name from signup
+          setTimeout(async () => {
+            await saveBrandToSupabaseWithData(brandData);
           }, 1000);
           
           // Clear pending data
           localStorage.removeItem('pendingBrandData');
-          console.log('✅ [BRAND] Pending brand data applied:', brandData);
+          console.log('✅ [BRAND] Pending brand data applied and will be saved to database');
         } catch (error) {
           console.error('🔴 [BRAND] Failed to parse pending brand data:', error);
           localStorage.removeItem('pendingBrandData');
@@ -124,6 +121,14 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       ...prev,
       colors: [...prev.colors, color],
     }));
+    
+    // Auto-save to database for authenticated users
+    if (isAuthenticated && user) {
+      setTimeout(async () => {
+        await saveBrandToSupabase();
+        console.log('🎨 [BRAND] Auto-saved brand with new color to database');
+      }, 1000);
+    }
     
     // Show helpful tip for guest users
     if (!isAuthenticated && typeof window !== 'undefined') {
@@ -202,6 +207,43 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const saveBrandToSupabaseWithData = async (pendingBrandData: any) => {
+    if (!user) return;
+
+    try {
+      const brandData = {
+        user_id: user.id,
+        name: pendingBrandData.name || 'My Brand',
+        colors: pendingBrandData.colors || [],
+        fonts: pendingBrandData.fonts || [],
+        logo: pendingBrandData.logo
+      };
+
+      console.log('🎨 [BRAND] Saving brand to database:', brandData);
+
+      if (currentBrandId) {
+        // Update existing brand
+        const result = await brandAPI.update(currentBrandId, brandData);
+        if (result.success) {
+          console.log('✅ [BRAND] Brand updated in database');
+        } else {
+          console.error('🔴 [BRAND] Failed to update brand:', result.error);
+        }
+      } else {
+        // Create new brand
+        const result = await brandAPI.create(brandData);
+        if (result.success && result.brand) {
+          setCurrentBrandId(result.brand.id);
+          console.log('✅ [BRAND] New brand created in database with ID:', result.brand.id);
+        } else {
+          console.error('🔴 [BRAND] Failed to create brand:', result.error);
+        }
+      }
+    } catch (error) {
+      console.error('🔴 [BRAND] Failed to save brand to Supabase:', error);
+    }
+  };
+
   const loadBrandFromSupabase = async () => {
     if (!user) return;
 
@@ -210,14 +252,25 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       if (result.success && result.brands && result.brands.length > 0) {
         const brand = result.brands[0]; // Use the first brand for now
         setCurrentBrandId(brand.id);
-        setBrandAssets({
-          colors: brand.colors || [],
+        const loadedBrandAssets = {
+          colors: brand.colors || [], // Only use colors from database
           fonts: brand.fonts || defaultBrandAssets.fonts,
           logo: brand.logo
+        };
+        setBrandAssets(loadedBrandAssets);
+        console.log('✅ [BRAND] Loaded brand from database:', brand.name, loadedBrandAssets);
+        console.log('🎨 [BRAND] Brand colors available:', loadedBrandAssets.colors.length);
+      } else {
+        console.log('ℹ️ [BRAND] No existing brand found for user');
+        // Set empty brand assets for authenticated users without brands
+        setBrandAssets({
+          colors: [],
+          fonts: defaultBrandAssets.fonts,
+          logo: undefined
         });
       }
     } catch (error) {
-      console.error('Failed to load brand from Supabase:', error);
+      console.error('🔴 [BRAND] Failed to load brand from Supabase:', error);
     }
   };
 

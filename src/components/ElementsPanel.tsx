@@ -35,7 +35,7 @@ interface ElementsPanelProps {
 // Brand colors
 const brandColors = [
   '#6366f1', // Indigo
-  '#8b5cf6', // Purple
+  '#ff4940', // Coral
   '#ec4899', // Pink
   '#f59e0b', // Amber
   '#10b981', // Emerald
@@ -488,8 +488,7 @@ export function ElementsPanel({ onAddElement }: ElementsPanelProps) {
             />
             <button
               onClick={() => imageInputRef.current?.click()}
-              className="w-full p-3 rounded-lg text-white transition-all duration-200 hover:opacity-90 flex flex-col items-center space-y-1"
-              style={{ backgroundColor: '#ff4940' }}
+              className="w-full p-3 rounded-lg text-white transition-all duration-200 hover:opacity-90 flex flex-col items-center space-y-1 bg-[#003a63]"
             >
               <FileImage className="w-5 h-5" />
               <span className="text-xs font-medium">Add Image</span>
@@ -508,8 +507,8 @@ export function ElementsPanel({ onAddElement }: ElementsPanelProps) {
             />
             <button
               onClick={() => svgInputRef.current?.click()}
-              className="w-full p-3 rounded-lg text-white transition-all duration-200 hover:opacity-90 flex flex-col items-center space-y-1"
-              style={{ backgroundColor: '#6366f1' }}
+              className="w-full p-3 rounded-lg text-white transition-all duration-200 hover:opacity-90 flex flex-col items-center space-y-1 bg-[#003a63]"
+              style={{ backgroundColor: '#003a63' }}
             >
               <Star className="w-5 h-5" />
               <span className="text-xs font-medium">Add SVG</span>
@@ -517,73 +516,10 @@ export function ElementsPanel({ onAddElement }: ElementsPanelProps) {
             </button>
           </label>
         </div>
-        
-        <div className="text-xs text-gray-400 text-center mt-2">
-          💡 Drag & drop files directly onto the canvas
-        </div>
       </div>
 
       {/* Categories with 2-row displays */}
       <div className="space-y-4">
-        {/* Icons */}
-        <div>
-          <h3 className="text-xs font-semibold text-white mb-2 flex items-center">
-            <Star className="w-3.5 h-3.5 mr-1.5" />
-            Icons
-          </h3>
-          <div className="grid grid-cols-4 gap-1">
-            {categoryElements.icons.map((icon, index) => {
-              const IconComponent = icon.icon;
-              return (
-                <button
-                  key={icon.name}
-                  onClick={() => handleElementAdd({
-                    type: 'icon',
-                    iconName: icon.name,
-                    width: 60,
-                    height: 60,
-                    color: '#000000'
-                  })}
-                  className="p-2 rounded text-center transition-colors hover:bg-gray-700"
-                  style={{ backgroundColor: '#003a63' }}
-                  title={icon.name}
-                >
-                  <IconComponent className="w-4 h-4 mx-auto text-gray-300" />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Shapes */}
-        <div>
-          <h3 className="text-xs font-semibold text-white mb-2 flex items-center">
-            <ShapesIcon className="w-3.5 h-3.5 mr-1.5" />
-            Shapes
-          </h3>
-          <div className="grid grid-cols-4 gap-1">
-            {categoryElements.shapes.map((shape) => (
-              <button
-                key={shape.name}
-                onClick={() => handleElementAdd({
-                  type: shape.type,
-                  width: 100,
-                  height: 100,
-                  backgroundColor: '#000000'
-                })}
-                className="p-2 rounded text-center transition-colors hover:bg-gray-700"
-                style={{ backgroundColor: '#003a63' }}
-                title={shape.name}
-              >
-                {typeof shape.icon === 'string' ? (
-                  <span className="text-gray-300">{shape.icon}</span>
-                ) : (
-                  <shape.icon className="w-4 h-4 mx-auto text-gray-300" />
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* 3D Emojis */}
         <div>
@@ -644,6 +580,67 @@ export function ElementsPanel({ onAddElement }: ElementsPanelProps) {
           </div>
         </div>
       </div>
+
+              {/* Icons */}
+              <div>
+          <h3 className="text-xs font-semibold text-white mb-2 flex items-center">
+            <Star className="w-3.5 h-3.5 mr-1.5" />
+            Icons
+          </h3>
+          <div className="grid grid-cols-4 gap-1">
+            {categoryElements.icons.map((icon, index) => {
+              const IconComponent = icon.icon;
+              return (
+                <button
+                  key={icon.name}
+                  onClick={() => handleElementAdd({
+                    type: 'icon',
+                    iconName: icon.name,
+                    width: 60,
+                    height: 60,
+                    color: '#000000'
+                  })}
+                  className="p-2 rounded text-center transition-colors hover:bg-gray-700"
+                  style={{ backgroundColor: '#003a63' }}
+                  title={icon.name}
+                >
+                  <IconComponent className="w-4 h-4 mx-auto text-gray-300" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Shapes */}
+        <div>
+          <h3 className="text-xs font-semibold text-white mb-2 flex items-center">
+            <ShapesIcon className="w-3.5 h-3.5 mr-1.5" />
+            Shapes
+          </h3>
+          <div className="grid grid-cols-4 gap-1">
+            {categoryElements.shapes.map((shape) => (
+              <button
+                key={shape.name}
+                onClick={() => handleElementAdd({
+                  type: shape.type,
+                  width: 100,
+                  height: 100,
+                  backgroundColor: '#000000'
+                })}
+                className="p-2 rounded text-center transition-colors hover:bg-gray-700"
+                style={{ backgroundColor: '#003a63' }}
+                title={shape.name}
+              >
+                {typeof shape.icon === 'string' ? (
+                  <span className="text-gray-300">{shape.icon}</span>
+                ) : (
+                  <shape.icon className="w-4 h-4 mx-auto text-gray-300" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
 
       {/* 3D Emoji Modal */}
       <EmojiModal 

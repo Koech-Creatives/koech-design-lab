@@ -703,23 +703,7 @@ export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
         <PrivacyModal onClose={() => setShowPrivacyModal(false)} />
       )}
 
-              <ToastContainer
-          position="top-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="dark"
-          toastStyle={{
-            backgroundColor: '#003a63',
-            color: '#ffffff',
-            border: '1px solid #ff4940'
-          }}
-        />
+
     </div>
   );
 }

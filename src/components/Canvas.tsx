@@ -6,21 +6,27 @@ import { useCanvas } from '../contexts/CanvasContext';
 import { useTools } from '../contexts/ToolsContext';
 import { useBackground } from '../contexts/BackgroundContext';
 import { usePages } from '../contexts/PagesContext';
-import { RotateCcw, Upload, Link, ZoomIn, ZoomOut, Menu, X } from 'lucide-react';
+import { useBrand } from '../contexts/BrandContext';
+import { useAuth } from '../contexts/AuthContext';
+import { RotateCcw, Upload, Link, ZoomIn, ZoomOut, Menu, X, Palette, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface CanvasProps {
   platform: string;
   template?: any;
   onFormatChange?: (format: any) => void;
+  panelsCollapsed?: boolean;
+  onTogglePanelsCollapse?: () => void;
 }
 
-export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
+export function Canvas({ platform, template, onFormatChange, panelsCollapsed, onTogglePanelsCollapse }: CanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { elements, addElement, updateElement, selectElement, selectedElement, clearCanvas, removeElement, duplicateElement } = useCanvas();
   const { selectedTool, getToolCursor } = useTools();
-  const { canvasBackgroundColor, setCanvasBackgroundColor } = useBackground();
+  const { canvasBackgroundColor, setCanvasBackgroundColor, getDefaultCanvasColor } = useBackground();
   const { currentPageId, updatePageElements, getCurrentPageElements } = usePages();
+  const { brandAssets } = useBrand();
+  const { isAuthenticated } = useAuth();
   
   const specs = PlatformSpecs[platform as keyof typeof PlatformSpecs] || PlatformSpecs.instagram;
   const [currentFormat, setCurrentFormat] = useState(specs.formats[0]);
@@ -31,13 +37,36 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [showDimensionsPanel, setShowDimensionsPanel] = useState(true);
+  const [sampledColor, setSampledColor] = useState<string | null>(null);
   const isLoadingElementsRef = useRef(false);
 
-  // Fixed editor background - no more customization
-  const editorBackgroundStyle = {
-    backgroundColor: '#0f172a',
-    backgroundImage: 'radial-gradient(#232323 1px,rgb(24, 24, 24) 1px)',
-    backgroundSize: '20px 20px'
+  // Editor background with subtle brand integration
+  const getEditorBackgroundStyle = () => {
+    const baseStyle = {
+      backgroundColor: '#0f172a',
+      backgroundImage: 'radial-gradient(#232323 1px,rgb(24, 24, 24) 1px)',
+      backgroundSize: '20px 20px'
+    };
+
+    // Add subtle brand accent for authenticated users
+    if (isAuthenticated && brandAssets.colors && brandAssets.colors.length > 0) {
+      const primaryColor = brandAssets.colors[0];
+      // Very subtle brand accent in the grid pattern
+      return {
+        ...baseStyle,
+        backgroundImage: `radial-gradient(${primaryColor.hex}15 1px, rgb(24, 24, 24) 1px)`,
+      };
+    }
+
+    // Koech Labs subtle accent for guests
+    if (!isAuthenticated) {
+      return {
+        ...baseStyle,
+        backgroundImage: 'radial-gradient(#ff494015 1px, rgb(24, 24, 24) 1px)',
+      };
+    }
+
+    return baseStyle;
   };
 
   useEffect(() => {
@@ -138,21 +167,58 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
         case 'selection':
         case 'direct-selection':
           selectElement(null);
+          console.log('🔧 Selection tool: Deselected all elements');
           break;
         case 'hand':
           // Hand tool doesn't add elements on click, just handles panning
+          console.log('🔧 Hand tool: Canvas clicked (no action)');
+          break;
+        case 'color-picker':
+          // Color picker tool - sample canvas background color or element color
+          const elementAtClick = elements.find(el => {
+            const rectEl = canvasRef.current?.getBoundingClientRect();
+            if (rectEl) {
+              const clickX = (e.clientX - rectEl.left) / zoomLevel;
+              const clickY = (e.clientY - rectEl.top) / zoomLevel;
+              return clickX >= el.x && clickX <= el.x + el.width && 
+                     clickY >= el.y && clickY <= el.y + el.height;
+            }
+            return false;
+          });
+          
+          let colorToSample = canvasBackgroundColor;
+          if (elementAtClick) {
+            colorToSample = elementAtClick.color || elementAtClick.backgroundColor || canvasBackgroundColor;
+          }
+          
+          setSampledColor(colorToSample);
+          console.log('🔧 Color picker: Sampled color:', colorToSample);
+          
+          // Copy color to clipboard
+          navigator.clipboard.writeText(colorToSample).then(() => {
+            console.log('🔧 Color copied to clipboard:', colorToSample);
+          }).catch(() => {
+            console.log('🔧 Failed to copy color to clipboard');
+          });
+          
+          // Hide sampled color after 3 seconds
+          setTimeout(() => setSampledColor(null), 3000);
           break;
         case 'text':
-          // Add text element at center position by default
+          // Add text element at click position
           const rect = canvasRef.current?.getBoundingClientRect();
           if (rect) {
-            // Center the element on the canvas
-            const centerX = (currentFormat.width - 200) / 2;
-            const centerY = (currentFormat.height - 40) / 2;
+            const clickX = (e.clientX - rect.left) / zoomLevel;
+            const clickY = (e.clientY - rect.top) / zoomLevel;
+            
+            // Adjust position to center the text element
+            const textX = Math.max(0, Math.min(clickX - 100, currentFormat.width - 200));
+            const textY = Math.max(0, Math.min(clickY - 20, currentFormat.height - 40));
+            
             addElement({
               type: 'text',
-              x: centerX,
-              y: centerY,
+              x: textX,
+              y: textY,
               width: 200,
               height: 40,
               content: 'Click to edit text',
@@ -163,27 +229,34 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
               textAlign: 'center',
               autoWrap: true,
             });
+            console.log('🔧 Text tool: Added text element at', textX, textY);
           }
           break;
         case 'line':
-          // Add line element at center position by default
+          // Add line element at click position
           const rectLine = canvasRef.current?.getBoundingClientRect();
           if (rectLine) {
-            // Center the element on the canvas
-            const centerX = (currentFormat.width - 100) / 2;
-            const centerY = (currentFormat.height - 2) / 2;
+            const clickX = (e.clientX - rectLine.left) / zoomLevel;
+            const clickY = (e.clientY - rectLine.top) / zoomLevel;
+            
+            // Adjust position to center the line element
+            const lineX = Math.max(0, Math.min(clickX - 50, currentFormat.width - 100));
+            const lineY = Math.max(0, Math.min(clickY - 1, currentFormat.height - 2));
+            
             addElement({
               type: 'line',
-              x: centerX,
-              y: centerY,
+              x: lineX,
+              y: lineY,
               width: 100,
               height: 2,
               backgroundColor: '#000000',
             });
+            console.log('🔧 Line tool: Added line element at', lineX, lineY);
           }
           break;
         default:
           selectElement(null);
+          console.log('🔧 Unknown tool:', selectedTool);
       }
     }
   };
@@ -341,8 +414,6 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
     duplicateElement(elementId);
   };
 
-
-
   const resetCanvas = () => {
     clearCanvas();
     selectElement(null);
@@ -374,6 +445,33 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
 
   return (
     <div className="w-full h-full flex flex-col relative">
+      {/* Standalone Collapse Button - Always visible */}
+      {onTogglePanelsCollapse && (
+        <div className="absolute top-4 right-4 z-10">
+          <button
+            onClick={onTogglePanelsCollapse}
+            className={`p-2 rounded-lg shadow-lg transition-all duration-200 backdrop-blur-sm ${
+              panelsCollapsed 
+                ? 'bg-red-500/90 text-white hover:bg-red-600/90 scale-110' 
+                : 'bg-gray-800/90 text-gray-300 hover:bg-gray-700/90 hover:text-white'
+            }`}
+            title={panelsCollapsed ? 'Show Panels (Expand)' : 'Hide Panels (Focus Mode)'}
+          >
+            {panelsCollapsed ? (
+              <div className="flex items-center space-x-1">
+                <ChevronLeft className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4" />
+              </div>
+            ) : (
+              <div className="flex items-center space-x-1">
+                <ChevronRight className="w-4 h-4" />
+                <ChevronLeft className="w-4 h-4" />
+              </div>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Fixed Dimensions Menu Button */}
       {!showDimensionsPanel && (
         <button
@@ -398,13 +496,15 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
                   <Menu className="w-3 h-3" />
                   <span>Canvas Dimensions</span>
                 </h3>
-                <button
-                  onClick={() => setShowDimensionsPanel(false)}
-                  className="p-1 rounded bg-gray-700 hover:bg-gray-600 transition-colors text-gray-300 hover:text-white"
-                  title="Minimize Panel"
-                >
-                  <X className="w-3 h-3" />
-                </button>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => setShowDimensionsPanel(false)}
+                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 transition-colors text-gray-300 hover:text-white"
+                    title="Minimize Panel"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
 
               {/* Format Buttons - Centered */}
@@ -435,19 +535,96 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
                 <div className="flex items-center space-x-2">
                   {/* Canvas Background Colors */}
                   <div className="flex items-center space-x-1">
-                    <span className="text-xs text-gray-400">BG:</span>
+                    <span className="text-xs text-gray-400">Background:</span>
                     <div className="flex space-x-1">
-                      {['#ffffff', '#f8f9fa', '#e9ecef', '#000000'].map((color) => (
-                        <button
-                          key={color}
-                          onClick={() => setCanvasBackgroundColor(color)}
-                          className={`w-4 h-4 rounded border hover:scale-110 transition-transform ${
-                            canvasBackgroundColor === color ? 'border-white border-2' : 'border-gray-600'
-                          }`}
-                          style={{ backgroundColor: color }}
-                          title={`Background: ${color}`}
-                        />
-                      ))}
+                      {/* Brand colors for authenticated users */}
+                      {isAuthenticated && brandAssets.colors && brandAssets.colors.length > 0 ? (
+                        <>
+                          {/* Always include white and black as basic options */}
+                          {['#ffffff','#000000'].map((color) => (
+                            <button
+                              key={color}
+                              onClick={() => setCanvasBackgroundColor(color)}
+                              className={`w-4 h-4 rounded border hover:scale-110 transition-transform ${
+                                canvasBackgroundColor === color ? 'border-white border-2' : 'border-gray-600'
+                              }`}
+                              style={{ backgroundColor: color }}
+                              title={`Background: ${color}`}
+                            />
+                          ))}
+                          
+                          <div className="w-px h-4 bg-gray-600 mx-1" />
+                          
+                          {/* Brand colors */}
+                          {brandAssets.colors.slice(0, 4).map((color) => (
+                            <button
+                              key={color.hex}
+                              onClick={() => setCanvasBackgroundColor(color.hex)}
+                              className={`w-4 h-4 rounded border hover:scale-110 transition-transform relative ${
+                                canvasBackgroundColor === color.hex ? 'border-white border-2' : 'border-gray-600'
+                              }`}
+                              style={{ backgroundColor: color.hex }}
+                              title={`Brand Color: ${color.name} (${color.hex})`}
+                            >
+                              {/* Brand indicator */}
+                              <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-gray-800 opacity-75" />
+                            </button>
+                          ))}
+                        </>
+                      ) : isAuthenticated ? (
+                        <>
+                          {/* Only basic colors for authenticated users without brand colors */}
+                          {['#ffffff','#000000'].map((color) => (
+                            <button
+                              key={color}
+                              onClick={() => setCanvasBackgroundColor(color)}
+                              className={`w-4 h-4 rounded border hover:scale-110 transition-transform ${
+                                canvasBackgroundColor === color ? 'border-white border-2' : 'border-gray-600'
+                              }`}
+                              style={{ backgroundColor: color }}
+                              title={`Background: ${color}`}
+                            />
+                          ))}
+                          <span className="text-xs text-gray-500 ml-2">Define brand colors to see more options</span>
+                        </>
+                      ) : (
+                        <>
+                          {/* Default colors for guests */}
+                          {['#ffffff','#000000'].map((color) => (
+                            <button
+                              key={color}
+                              onClick={() => setCanvasBackgroundColor(color)}
+                              className={`w-4 h-4 rounded border hover:scale-110 transition-transform ${
+                                canvasBackgroundColor === color ? 'border-white border-2' : 'border-gray-600'
+                              }`}
+                              style={{ backgroundColor: color }}
+                              title={`Background: ${color}`}
+                            />
+                          ))}
+                          
+                          <div className="w-px h-4 bg-gray-600 mx-1" />
+                          
+                          {/* Koech default colors for guests */}
+                          {[
+                            { hex: '#ff4940', name: 'Koech Red' },
+                            { hex: '#002e51', name: 'Koech Navy' },
+                            { hex: '#6366f1', name: 'Koech Blue' }
+                          ].map((color) => (
+                            <button
+                              key={color.hex}
+                              onClick={() => setCanvasBackgroundColor(color.hex)}
+                              className={`w-4 h-4 rounded border hover:scale-110 transition-transform relative ${
+                                canvasBackgroundColor === color.hex ? 'border-white border-2' : 'border-gray-600'
+                              }`}
+                              style={{ backgroundColor: color.hex }}
+                              title={`${color.name} (${color.hex})`}
+                            >
+                              {/* Koech Labs indicator */}
+                              <div className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full border border-gray-800 opacity-75" />
+                            </button>
+                          ))}
+                        </>
+                      )}
                     </div>
                   </div>
                   
@@ -502,7 +679,7 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
           ref={containerRef} 
           className="relative w-full h-full"
           style={{ 
-            ...editorBackgroundStyle,
+            ...getEditorBackgroundStyle(),
             transform: `translate(${panOffset.x}px, ${panOffset.y}px)`
           }}
         >
@@ -516,7 +693,13 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
                   ? 'bg-red-50' 
                   : selectedTool === 'hand' 
                     ? 'border-blue-400'
-                    : 'border-gray-600'
+                    : selectedTool === 'text'
+                      ? 'border-green-400'
+                      :                   selectedTool === 'line'
+                    ? 'border-red-400'
+                        : selectedTool === 'color-picker'
+                          ? 'border-yellow-400'
+                          : 'border-gray-600'
               }`}
               style={{
                 width: `${currentFormat.width}px`,
@@ -524,7 +707,12 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
                 transformOrigin: 'center',
                 transform: `scale(${zoomLevel})`,
                 backgroundColor: isDragOver ? '#ffffff' : canvasBackgroundColor,
-                borderColor: isDragOver ? '#ff4940' : selectedTool === 'hand' ? '#60a5fa' : '#6b7280',
+                borderColor: isDragOver ? '#ff4940' : 
+                  selectedTool === 'hand' ? '#60a5fa' : 
+                  selectedTool === 'text' ? '#10b981' :
+                  selectedTool === 'line' ? '#ff4940' :
+                  selectedTool === 'color-picker' ? '#f59e0b' :
+                  '#6b7280',
                 cursor: selectedTool === 'hand' ? (isPanning ? 'grabbing' : 'grab') : getToolCursor(selectedTool)
               }}
               onClick={handleCanvasClick}
@@ -556,6 +744,51 @@ export function Canvas({ platform, template, onFormatChange }: CanvasProps) {
                     <Upload className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-4 opacity-50" />
                     <p className="text-sm sm:text-lg font-medium">Drop elements or images here</p>
                     <p className="text-xs sm:text-sm">or select a template to get started</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Tool Indicator */}
+              {/* <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs font-medium">
+                {selectedTool === 'selection' && '🔍 Selection'}
+                {selectedTool === 'direct-selection' && '🎯 Direct Selection'}
+                {selectedTool === 'hand' && '✋ Hand'}
+                {selectedTool === 'color-picker' && '🎨 Color Picker'}
+                {selectedTool === 'text' && '📝 Text'}
+                {selectedTool === 'line' && '📏 Line'}
+              </div> */}
+
+              {/* Brand Colors Info for authenticated users without colors
+              {isAuthenticated && (!brandAssets.colors || brandAssets.colors.length === 0) && elements.length === 0 && (
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center max-w-md">
+                  <div className="bg-blue-600 bg-opacity-10 border border-blue-500 border-opacity-30 rounded-lg p-6">
+                    <div className="text-blue-300 mb-3">
+                      <Palette className="w-8 h-8 mx-auto mb-2" />
+                      <h3 className="text-lg font-semibold">Build Your Brand Palette</h3>
+                    </div>
+                    <p className="text-blue-200 text-sm mb-4">
+                      Start creating elements and use colors. They'll be automatically added to your brand palette for consistent design.
+                    </p>
+                    <p className="text-blue-300 text-xs">
+                      💡 Use the color picker in the properties panel to add colors to your brand
+                    </p>
+                  </div>
+                </div>
+              )} */}
+
+              {/* Color Picker Feedback */}
+              {selectedTool === 'color-picker' && sampledColor && (
+                <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 border border-gray-200">
+                  <div className="flex items-center space-x-2">
+                    <div 
+                      className="w-6 h-6 rounded border border-gray-300"
+                      style={{ backgroundColor: sampledColor }}
+                    />
+                    <div className="text-xs">
+                      <div className="font-medium text-gray-800">Sampled Color</div>
+                      <div className="text-gray-600 font-mono">{sampledColor}</div>
+                      <div className="text-gray-500 text-xs">Copied to clipboard</div>
+                    </div>
                   </div>
                 </div>
               )}

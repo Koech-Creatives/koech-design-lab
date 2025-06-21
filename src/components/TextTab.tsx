@@ -1,30 +1,17 @@
 import React, { useState } from 'react';
 import { 
-  Type, 
   Zap,
-  Palette,
   Quote,
   Hash,
   FileText,
   Heading1,
   Heading2,
   Heading3,
-  Bold,
-  Italic,
-  Underline,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  AlignJustify,
   Plus,
   Minus,
-  RotateCcw,
-  Sparkles,
-  Layers,
-  Circle,
-  Square
 } from 'lucide-react';
 import { useCanvas } from '../contexts/CanvasContext';
+import { useMarketingTracking } from '../hooks/useMarketingTracking';
 
 interface TextTabProps {
   onAddElement: (element: any) => void;
@@ -156,7 +143,7 @@ const textStyles = [
 
 // Brand colors palette
 const brandColors = [
-  '#000000', '#ffffff', '#ff4940', '#6366f1', '#8b5cf6', 
+        '#000000', '#ffffff', '#ff4940', '#6366f1', '#ff4940', 
   '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#64748b',
   '#1f2937', '#374151', '#6b7280', '#9ca3af', '#d1d5db'
 ];
@@ -254,6 +241,7 @@ export function TextTab({ onAddElement }: TextTabProps) {
   const [isEditingText, setIsEditingText] = useState(false);
   
   const { selectedElement, removeElement, updateElement, elements } = useCanvas();
+  const { trackTextAdded, trackFeatureUsed } = useMarketingTracking();
   
   // Get the selected element object
   const selectedElementObj = selectedElement ? elements.find(el => el.id === selectedElement) : null;
@@ -289,6 +277,16 @@ export function TextTab({ onAddElement }: TextTabProps) {
       rotation: 0
     };
     onAddElement(element);
+    
+    // Track text addition for marketing analytics
+    trackTextAdded({
+      content: textType.content,
+      fontSize: textType.fontSize,
+      fontWeight: textType.fontWeight,
+      fontFamily: selectedFont,
+      textStyle: selectedStyle,
+      textType: textType.name
+    });
   };
 
   const handleCustomTextAdd = () => {
@@ -313,6 +311,16 @@ export function TextTab({ onAddElement }: TextTabProps) {
       rotation: 0
     };
     onAddElement(element);
+    
+    // Track custom text addition
+    trackTextAdded({
+      content: customText,
+      fontSize: fontSize,
+      fontWeight: selectedFontWeight,
+      fontFamily: selectedFont,
+      textStyle: selectedStyle,
+      textType: 'Custom'
+    });
   };
 
   const handleFontSizeChange = (newSize: number) => {
@@ -338,6 +346,12 @@ export function TextTab({ onAddElement }: TextTabProps) {
   const handleTextStyleApply = (style: any) => {
     setSelectedStyle(style.value);
     applyTextProperty('textStyle', style.value);
+    
+    // Track feature usage
+    trackFeatureUsed('text-style', {
+      style: style.name,
+      value: style.value
+    });
   };
 
   const handleTextAlignChange = (alignment: string) => {
@@ -384,18 +398,18 @@ export function TextTab({ onAddElement }: TextTabProps) {
             value={customText}
             onChange={(e) => setCustomText(e.target.value)}
             placeholder="Enter your text..."
-            className="w-full p-2 text-xs border rounded resize-none"
+            className="w-full p-1 text-xs border rounded resize-none"
             style={{ 
               backgroundColor: '#003a63', 
               borderColor: '#004080',
               color: 'white',
-              minHeight: '60px'
+              minHeight: '40px'
             }}
-            rows={3}
+            rows={2}
           />
           <button
             onClick={handleCustomTextAdd}
-            className="w-full px-3 py-2 rounded text-xs font-medium text-white transition-colors hover:opacity-80"
+            className="w-full px-2 py-1 rounded text-xs font-medium text-white transition-colors hover:opacity-80"
             style={{ backgroundColor: '#ff4940' }}
           >
             Add Text
@@ -485,31 +499,7 @@ export function TextTab({ onAddElement }: TextTabProps) {
         </div>
       </div>
 
-      {/* Text Alignment */}
-      <div>
-        <h3 className="text-xs font-semibold text-white mb-2">Alignment</h3>
-        <div className="grid grid-cols-4 gap-1">
-          {[
-            { value: 'left', icon: AlignLeft },
-            { value: 'center', icon: AlignCenter },
-            { value: 'right', icon: AlignRight },
-            { value: 'justify', icon: AlignJustify }
-          ].map(({ value, icon: Icon }) => (
-            <button
-              key={value}
-              onClick={() => handleTextAlignChange(value)}
-              className={`p-2 rounded transition-colors ${
-                textAlign === value ? 'text-white' : 'text-gray-400 hover:text-white'
-              }`}
-              style={{ 
-                backgroundColor: textAlign === value ? '#ff4940' : '#003a63'
-              }}
-            >
-              <Icon className="w-3.5 h-3.5" />
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Text Alignment section removed - now handled by bottom properties panel */}
 
       {/* Text Transform */}
       <div>
@@ -532,30 +522,7 @@ export function TextTab({ onAddElement }: TextTabProps) {
         </div>
       </div>
 
-      {/* Color Palette */}
-      <div>
-        <h3 className="text-xs font-semibold text-white mb-2">Color</h3>
-        <div className="grid grid-cols-5 gap-1">
-          {brandColors.map((color) => (
-            <button
-              key={color}
-              onClick={() => handleColorChange(color)}
-              className={`w-8 h-8 rounded border-2 transition-all ${
-                selectedColor === color ? 'border-white' : 'border-gray-600'
-              }`}
-              style={{ backgroundColor: color }}
-              title={color}
-            />
-          ))}
-        </div>
-        <input
-          type="color"
-          value={selectedColor}
-          onChange={(e) => handleColorChange(e.target.value)}
-          className="w-full h-8 rounded border-2 mt-2"
-          style={{ borderColor: '#004080' }}
-        />
-      </div>
+      {/* Color section removed - now handled by bottom properties panel */}
 
       {/* Text Effects */}
       <div>

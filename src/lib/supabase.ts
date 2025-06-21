@@ -149,12 +149,10 @@ export const supabaseAuth = {
           fullError: JSON.stringify(error, null, 2)
         });
         
-        // If it's a "Database error saving new user", it might be a trigger issue
-        // Provide specific guidance
+        // Handle specific registration errors
         if (error.message === 'Database error saving new user') {
-          console.error('🔧 [SUPABASE] This error suggests the database trigger is not working.');
-          console.error('🔧 [SUPABASE] Please run the database-setup.sql script in Supabase SQL editor.');
-          throw new Error('Database setup incomplete. Please run the setup script and try again.');
+          console.error('🔧 [SUPABASE] Database trigger error detected - but we handle profiles manually now');
+          // Continue to throw the original error for proper handling
         }
         
         throw error;
@@ -167,6 +165,10 @@ export const supabaseAuth = {
         userMetadata: data.user?.user_metadata
       });
 
+      // Note: User profile will be created on first login via ensureUserProfile
+      // We don't create it immediately during registration because of RLS constraints
+      console.log('ℹ️ [SUPABASE] User profile will be created on first login');
+
       logSuccess('Registration', { 
         email, 
         userId: data.user?.id, 
@@ -174,6 +176,31 @@ export const supabaseAuth = {
         lastName,
         hasPhone: !!phone
       });
+
+      // Sync user data to marketing platforms
+      if (data.user?.id) {
+        try {
+          const { marketingSync } = await import('./marketing-sync');
+          await marketingSync.syncUserSignup({
+            id: data.user.id,
+            email,
+            firstName,
+            lastName,
+            phone,
+            signupDate: new Date().toISOString(),
+            source: 'App Signup',
+            metadata: {
+              userAgent: navigator.userAgent,
+              referrer: document.referrer,
+              timestamp: new Date().toISOString()
+            }
+          });
+          console.log('✅ [SUPABASE] User data synced to marketing platforms');
+        } catch (syncError) {
+          console.warn('⚠️ [SUPABASE] Marketing sync failed (non-critical):', syncError);
+          // Don't fail registration if marketing sync fails
+        }
+      }
       
       return { success: true, user: data.user };
     } catch (error: any) {
@@ -198,6 +225,70 @@ export const supabaseAuth = {
       });
       
       return { success: false, error: error.message || 'Registration failed' };
+    }
+  },
+
+  // Ensure user profile exists (for existing users or failed profile creation)
+  ensureUserProfile: async (user: any, firstName?: string, lastName?: string, phone?: string) => {
+    if (!user?.id) {
+      console.warn('⚠️ [SUPABASE] No user provided to ensureUserProfile');
+      return { success: false, error: 'No user provided' };
+    }
+
+    try {
+      console.log('🔍 [SUPABASE] Checking if user profile exists for:', user.id);
+      
+      // Check if profile already exists
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('user_profiles')
+        .select('id, email, full_name')
+        .eq('id', user.id)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('🔴 [SUPABASE] Error checking profile:', checkError);
+        return { success: false, error: checkError.message };
+      }
+
+      if (existingProfile) {
+        console.log('✅ [SUPABASE] User profile already exists:', existingProfile);
+        return { success: true, profile: existingProfile };
+      }
+
+      // Profile doesn't exist, create it
+      console.log('👤 [SUPABASE] Creating missing user profile...');
+      
+      const profileData = {
+        id: user.id,
+        email: user.email || '',
+        full_name: firstName && lastName ? `${firstName} ${lastName}`.trim() : 
+                   user.user_metadata?.full_name || 
+                   `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || 
+                   'User',
+        first_name: firstName || user.user_metadata?.first_name || '',
+        last_name: lastName || user.user_metadata?.last_name || '',
+        phone: phone || user.user_metadata?.phone || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: newProfile, error: createError } = await supabase
+        .from('user_profiles')
+        .insert([profileData])
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('🔴 [SUPABASE] Failed to create user profile:', createError);
+        return { success: false, error: createError.message };
+      }
+
+      console.log('✅ [SUPABASE] User profile created successfully:', newProfile);
+      return { success: true, profile: newProfile };
+
+    } catch (error: any) {
+      console.error('🔴 [SUPABASE] ensureUserProfile error:', error);
+      return { success: false, error: error.message || 'Failed to ensure user profile' };
     }
   },
 

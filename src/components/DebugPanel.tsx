@@ -136,7 +136,7 @@ export function DebugPanel() {
             {/* Supabase Session */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Database className="w-4 h-4 text-purple-400" />
+                <Database className="w-4 h-4" style={{ color: '#ff4940' }} />
                 <span className="text-sm text-gray-300">Supabase Session</span>
               </div>
               <div className="text-xs text-gray-400 ml-6 space-y-1">

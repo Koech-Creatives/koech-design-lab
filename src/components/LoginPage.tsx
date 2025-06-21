@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, Mail, Lock, LogIn } from 'lucide-react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface LoginPageProps {
   onSwitchToSignup: () => void;
@@ -12,9 +14,76 @@ export function LoginPage({ onSwitchToSignup }: LoginPageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isResendingConfirmation, setIsResendingConfirmation] = useState(false);
-  const [confirmationSent, setConfirmationSent] = useState(false);
-  const { login, resendConfirmation } = useAuth();
+  const { login } = useAuth();
+
+  // Format user-friendly error messages
+  const formatErrorMessage = (error: any): string => {
+    if (!error) return 'An unexpected error occurred';
+    
+    // Handle specific error codes and messages
+    if (typeof error === 'string') {
+      // Handle common error messages
+      if (error.includes('Invalid login credentials')) {
+        return 'The email or password you entered is incorrect. Please check and try again.';
+      }
+      if (error.includes('Email not confirmed')) {
+        return 'Please check your email and click the confirmation link before logging in.';
+      }
+      if (error.includes('invalid email')) {
+        return 'Please enter a valid email address.';
+      }
+      return error;
+    }
+
+    // Handle error objects with codes
+    if (error.code) {
+      switch (error.code) {
+        case 'invalid_credentials':
+          return 'The email or password you entered is incorrect. Please check and try again.';
+        case 'email_not_confirmed':
+          return 'Please check your email and click the confirmation link before logging in.';
+        case 'signup_disabled':
+          return 'Login is currently disabled. Please contact support.';
+        case 'email_address_invalid':
+          return 'Please enter a valid email address.';
+        case 'rate_limit_exceeded':
+          return 'Too many login attempts. Please wait a few minutes before trying again.';
+        case 'database_error':
+          return 'There was a problem with our database. Please try again in a moment.';
+        case 'network_error':
+          return 'Network connection error. Please check your internet connection and try again.';
+        default:
+          return error.message || 'An unexpected error occurred. Please try again.';
+      }
+    }
+
+    // Handle error objects with messages
+    if (error.message) {
+      return formatErrorMessage(error.message);
+    }
+
+    return 'An unexpected error occurred. Please try again.';
+  };
+
+  // Show user-friendly error toast and set error state
+  const showError = (error: any) => {
+    const errorMessage = formatErrorMessage(error);
+    setError(errorMessage);
+    toast.error(errorMessage, {
+      position: "top-center",
+      autoClose: 6000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      style: {
+        background: '#FEE2E2',
+        color: '#DC2626',
+        borderLeft: '4px solid #DC2626',
+        fontSize: '14px'
+      }
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +91,7 @@ export function LoginPage({ onSwitchToSignup }: LoginPageProps) {
     setIsLoading(true);
 
     if (!email || !password) {
-      setError('Please fill in all fields');
+      showError('Please fill in all fields');
       setIsLoading(false);
       return;
     }
@@ -30,203 +99,125 @@ export function LoginPage({ onSwitchToSignup }: LoginPageProps) {
     try {
       const result = await login(email, password);
       if (!result.success) {
-        setError(result.error || 'Login failed');
+        showError(result.error || 'Login failed');
       }
     } catch (error) {
-      setError('An unexpected error occurred');
+      showError(error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleResendConfirmation = async () => {
-    if (!email) {
-      setError('Please enter your email address first');
-      return;
-    }
-
-    setIsResendingConfirmation(true);
-    setError('');
-
-    try {
-      const result = await resendConfirmation(email);
-      if (result.success) {
-        setConfirmationSent(true);
-        setError('');
-      } else {
-        setError(result.error || 'Failed to resend confirmation email');
-      }
-    } catch (error) {
-      setError('Failed to resend confirmation email');
-    } finally {
-      setIsResendingConfirmation(false);
-    }
-  };
+  const gilmerFont = 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
 
   return (
     <div 
       className="min-h-screen flex items-center justify-center p-4"
       style={{ 
-        background: 'linear-gradient(135deg, #002e51 0%, #002e51 100%)' 
+        background: 'linear-gradient(135deg, #002e51 0%, #002e51 100%)',
+        fontFamily: gilmerFont
       }}
     >
-      <div className="max-w-md w-full space-y-8">
-        {/* Logo/Brand */}
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ backgroundColor: '#ff4940' }}>
-            <LogIn className="w-8 h-8 text-white" />
+      <div className="w-full max-w-sm">
+        {/* Header */}
+        <div className="text-center mb-6" style={{ fontFamily: gilmerFont }}>
+          <div className="w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ backgroundColor: '#ff4940' }}>
+            <LogIn className="w-6 h-6 text-white" />
           </div>
-          <h2 className="text-3xl font-bold text-white">Welcome Back</h2>
-          <p className="mt-2 text-gray-400">Sign in to your account</p>
+          <h2 className="text-2xl font-bold text-white" style={{ fontFamily: gilmerFont }}>Welcome Back</h2>
+          <p className="text-gray-400 text-sm" style={{ fontFamily: gilmerFont }}>Sign in to continue</p>
         </div>
 
-        {/* Login Form */}
-        <div 
-          className="p-8 rounded-xl shadow-2xl"
-          style={{ backgroundColor: '#002e52' }}
-        >
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email Field */}
+        {/* Form */}
+        <div className="p-6 rounded-lg shadow-lg" style={{ backgroundColor: '#003a63', fontFamily: gilmerFont }}>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                Email Address
-              </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <input
-                  id="email"
-                  name="email"
                   type="email"
-                  autoComplete="email"
-                  required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-3 py-3 border border-gray-600 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Enter your email"
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (error) setError('');
+                  }}
+                  className="w-full pl-10 pr-3 py-2.5 bg-gray-800 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  placeholder="Email"
+                  required
+                  style={{ fontFamily: gilmerFont }}
                 />
               </div>
             </div>
 
-            {/* Password Field */}
+            {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                Password
-              </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <input
-                  id="password"
-                  name="password"
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-600 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Enter your password"
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (error) setError('');
+                  }}
+                  className="w-full pl-10 pr-10 py-2.5 bg-gray-800 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  placeholder="Password"
+                  required
+                  style={{ fontFamily: gilmerFont }}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-300"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-300" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-300" />
-                  )}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            {/* Success Message for Confirmation Email */}
-            {confirmationSent && (
-              <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                <p className="text-sm text-green-400">
-                  ✅ Confirmation email sent to {email}. Please check your inbox and click the confirmation link.
-                </p>
-              </div>
-            )}
-
-            {/* Error Message */}
+            {/* Error */}
             {error && (
-              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                <p className="text-sm text-red-400">{error}</p>
-                {error === 'Email not confirmed' && (
-                  <div className="mt-2">
-                    <button
-                      type="button"
-                      onClick={handleResendConfirmation}
-                      disabled={isResendingConfirmation}
-                      className="text-sm text-red-300 hover:text-red-200 underline disabled:opacity-50"
-                    >
-                      {isResendingConfirmation ? 'Sending...' : 'Resend confirmation email'}
-                    </button>
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 shadow-md">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-4 w-4 text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
                   </div>
-                )}
+                  <div className="ml-2 flex-1">
+                    <p className="text-sm font-medium text-red-800" style={{ fontFamily: gilmerFont }}>{error}</p>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Submit Button */}
+            {/* Submit */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 px-6 rounded-lg text-white font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ 
-                backgroundColor: '#ff4940',
-                opacity: isLoading ? 0.7 : 1
-              }}
+              className="w-full py-2.5 px-4 rounded font-medium text-white transition-opacity disabled:opacity-50"
+              style={{ backgroundColor: '#ff4940', fontFamily: gilmerFont }}
             >
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Signing in...
-                </div>
-              ) : (
-                'Sign In'
-              )}
+              {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
           {/* Switch to Signup */}
-          <div className="mt-6 text-center">
-            <p className="text-gray-400">
-              Don't have an account?{' '}
-              <button
-                onClick={onSwitchToSignup}
-                className="text-red-400 hover:text-red-300 font-medium transition-colors duration-200"
-              >
-                Sign up
-              </button>
-            </p>
+          <div className="mt-4 text-center" style={{ fontFamily: gilmerFont }}>
+            <span className="text-gray-400 text-sm">Don't have an account? </span>
+            <button
+              onClick={onSwitchToSignup}
+              className="text-red-400 hover:text-red-300 text-sm font-medium"
+              style={{ fontFamily: gilmerFont }}
+            >
+              Sign up
+            </button>
           </div>
-
-          {/* Legal Links */}
-          <div className="mt-4 text-center">
-            <p className="text-gray-500 text-xs">
-              By using our service, you agree to our{' '}
-              <a href="#" className="text-red-400 hover:text-red-300 underline">
-                Terms of Service
-              </a>{' '}
-              and{' '}
-              <a href="#" className="text-red-400 hover:text-red-300 underline">
-                Privacy Policy
-              </a>
-            </p>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center">
-          <p className="text-gray-500 text-sm">
-            © 2024 Koech Design Lab. All rights reserved.
-          </p>
         </div>
       </div>
+
+
     </div>
   );
 } 
