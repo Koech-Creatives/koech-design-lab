@@ -52,15 +52,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     console.log('🔍 Setting up Supabase auth listener...');
     
+    // Timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      console.warn('⚠️ Auth loading timeout - forcing loading to false');
+      setIsLoading(false);
+    }, 10000); // 10 second timeout
+    
     // Get initial session
     const getInitialSession = async () => {
       try {
         console.log('🔍 Getting initial session...');
+        
+        // Check if Supabase is properly configured
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        
+        if (!supabaseUrl || !supabaseKey || 
+            supabaseUrl === 'https://your-project-id.supabase.co' || 
+            supabaseKey === 'your-anon-key-here' ||
+            supabaseUrl.includes('placeholder')) {
+          console.warn('⚠️ Supabase not configured properly - continuing in guest mode');
+          setIsLoading(false);
+          clearTimeout(loadingTimeout);
+          return;
+        }
+        
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('🔴 Error getting initial session:', error);
           setIsLoading(false);
+          clearTimeout(loadingTimeout);
           return;
         }
 
@@ -77,8 +99,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('🔴 Error in getInitialSession:', error);
+        console.warn('⚠️ Continuing in guest mode due to auth error');
       } finally {
         setIsLoading(false);
+        clearTimeout(loadingTimeout);
       }
     };
 
@@ -94,11 +118,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           hasSession: !!session
         });
         
+        clearTimeout(loadingTimeout); // Clear timeout when we get auth state change
+        
         try {
           if (session?.user) {
             const transformedUser = transformSupabaseUser(session.user);
             setUser(transformedUser);
             console.log('✅ User set from auth state change:', transformedUser);
+            
+            // Ensure user profile exists (for existing users or failed profile creation)
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+              try {
+                console.log('🔍 [AUTH] Ensuring user profile exists...');
+                const profileResult = await supabaseAuth.ensureUserProfile(session.user);
+                if (profileResult.success) {
+                  console.log('✅ [AUTH] User profile confirmed/created');
+                } else {
+                  console.warn('⚠️ [AUTH] Failed to ensure user profile:', profileResult.error);
+                }
+              } catch (profileError) {
+                console.error('🔴 [AUTH] Error ensuring user profile:', profileError);
+                // Don't fail auth if profile creation fails
+              }
+            }
           } else {
             setUser(null);
             console.log('🔄 User cleared from auth state change');
@@ -115,6 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       console.log('🧹 Cleaning up auth listener');
+      clearTimeout(loadingTimeout);
       subscription.unsubscribe();
     };
   }, []);

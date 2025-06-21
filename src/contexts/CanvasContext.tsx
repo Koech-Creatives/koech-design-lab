@@ -16,8 +16,10 @@ interface CanvasElement {
   fontSize?: number;
   fontWeight?: string;
   fontFamily?: string;
+  fontStyle?: string;
   textAlign?: string;
   textTransform?: string;
+  textDecoration?: string;
   textStyle?: string;
   customStyle?: any;
   autoWrap?: boolean;

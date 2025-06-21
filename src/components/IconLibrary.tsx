@@ -240,7 +240,7 @@ export function IconLibrary({ isOpen, onClose, onSelectIcon, selectedColor }: Ic
                 placeholder="Search icons by name or tag..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-indigo-500"
+                className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-red-500"
               />
             </div>
 

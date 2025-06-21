@@ -1,5 +1,5 @@
 import React from 'react';
-import { Hand, Pipette, Type, Minus, PaintBucket, FilePlus } from 'lucide-react';
+import { Hand, Pipette, Type, Minus } from 'lucide-react';
 import { useTools } from '../contexts/ToolsContext';
 
 interface Tool {
@@ -17,14 +17,14 @@ export function ToolsPanel() {
       id: 'selection',
       name: 'Selection',
       icon: <img src="/selection-tool.svg" alt="Selection" className="w-3.5 h-3.5" />,
-      cursor: 'url(/selection-tool.svg) 2 2, auto',
+      cursor: 'url(/selection-tool.svg) 12 12, pointer',
       hotkey: 'V'
     },
     {
       id: 'direct-selection',
       name: 'Direct',
       icon: <img src="/direct-selection-tool.svg" alt="Direct Selection" className="w-3.5 h-3.5" />,
-      cursor: 'url(/direct-selection-tool.svg) 2 2, auto',
+      cursor: 'url(/direct-selection-tool.svg) 12 12, pointer',
       hotkey: 'A'
     },
     {
@@ -54,20 +54,6 @@ export function ToolsPanel() {
       icon: <Minus className="w-3.5 h-3.5" />,
       cursor: 'crosshair',
       hotkey: 'L'
-    },
-    {
-      id: 'stroke',
-      name: 'Stroke',
-      icon: <PaintBucket className="w-3.5 h-3.5" />,
-      cursor: 'crosshair',
-      hotkey: 'S'
-    },
-    {
-      id: 'page',
-      name: 'Page',
-      icon: <FilePlus className="w-3.5 h-3.5" />,
-      cursor: 'pointer',
-      hotkey: 'P'
     }
   ];
 
@@ -85,7 +71,7 @@ export function ToolsPanel() {
                 ? 'text-white shadow-md'
                 : 'text-gray-400 hover:text-white'
             }`}
-            style={selectedTool === tool.id ? { backgroundColor: '#ff4940' } : { backgroundColor: '#003a63' }}
+            style={selectedTool === tool.id ? { backgroundColor: '#ff494040' } : { backgroundColor: '#003a6330' }}
             onMouseEnter={(e) => {
               if (selectedTool !== tool.id) {
                 e.currentTarget.style.backgroundColor = '#004080';

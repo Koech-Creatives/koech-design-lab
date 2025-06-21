@@ -52,18 +52,6 @@ const tools: Tool[] = [
     name: 'Line Tool',
     cursor: 'crosshair',
     hotkey: 'L'
-  },
-  {
-    id: 'stroke',
-    name: 'Stroke Tool',
-    cursor: 'crosshair',
-    hotkey: 'S'
-  },
-  {
-    id: 'page',
-    name: 'Page Tool',
-    cursor: 'pointer',
-    hotkey: 'P'
   }
 ];
 
@@ -89,7 +77,7 @@ export function ToolsProvider({ children }: { children: React.ReactNode }) {
       const tool = tools.find(t => t.hotkey?.toLowerCase() === key);
       
       if (tool) {
-        console.log('Keyboard shortcut triggered:', key, 'for tool:', tool.name);
+        console.log('🔧 Tool switched via keyboard:', key, 'to', tool.name);
         event.preventDefault();
         setSelectedTool(tool.id);
       }

@@ -9,7 +9,7 @@ export const PlatformSpecs = {
     ],
     safeZone: {
       marginPercentage: 0.1,
-      color: '#8b5cf6',
+      color: '#ff4940',
     },
   },
   linkedin: {

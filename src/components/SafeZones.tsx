@@ -15,7 +15,7 @@ export function SafeZones({ format, platform }: SafeZonesProps) {
     const safeZones = {
       instagram: {
         marginPercentage: 0.1, // 10% margin from edges
-        color: 'rgba(168, 85, 247, 0.2)', // Purple
+        color: 'rgba(255, 73, 64, 0.2)', // Coral
       },
       linkedin: {
         marginPercentage: 0.08,

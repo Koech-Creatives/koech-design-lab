@@ -26,437 +26,173 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
   const textRef = useRef<HTMLDivElement>(null);
   const { removeElement, duplicateElement } = useCanvas();
 
+  // Simplified state management
   const [isEditing, setIsEditing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState<string>('');
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
-  const [showTextToolbar, setShowTextToolbar] = useState(false);
-  const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 });
-  const [selectedText, setSelectedText] = useState('');
-  const [textSelection, setTextSelection] = useState<{ start: number; end: number } | null>(null);
 
-  // Debounce utility function
-  function debounce(func: Function, wait: number) {
-    let timeout: NodeJS.Timeout;
-    return function executedFunction(...args: any[]) {
-      const later = () => {
-        clearTimeout(timeout);
-        func(...args);
-      };
-      clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
-    };
-  }
+  // ========================================
+  // TEXT LOGIC - COMPLETELY REWRITTEN
+  // ========================================
 
-  // Dynamic text container resizing - now only on content change, not manual resize
-  const resizeTextContainer = useCallback(() => {
-    if (textRef.current && element.type === 'text') {
-      // Get canvas boundaries from parent canvas element
-      const canvasElement = document.querySelector('[data-canvas="true"]');
-      const canvasWidth = canvasElement ? canvasElement.clientWidth : 1080;
-      const canvasHeight = canvasElement ? canvasElement.clientHeight : 1080;
-      
-      // Create a temporary element to measure text dimensions
-      const tempElement = document.createElement('div');
-      tempElement.style.position = 'absolute';
-      tempElement.style.visibility = 'hidden';
-      tempElement.style.whiteSpace = 'pre-wrap'; // Allow wrapping for multi-line text
-      tempElement.style.wordWrap = 'break-word';
-      tempElement.style.overflowWrap = 'break-word';
-      tempElement.style.fontSize = `${element.fontSize || 18}px`;
-      tempElement.style.fontWeight = element.fontWeight || 'normal';
-      tempElement.style.fontFamily = element.fontFamily || 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-      tempElement.style.padding = '8px';
-      tempElement.style.lineHeight = '1.4';
-      tempElement.style.textAlign = element.textAlign || 'left';
-      
-      // Set max width based on canvas boundaries and current position
-      const maxPossibleWidth = Math.max(200, canvasWidth - element.x - 20);
-      tempElement.style.maxWidth = `${Math.min(800, maxPossibleWidth)}px`;
-      tempElement.innerHTML = textRef.current.innerHTML || 'Sample Text';
-      
-      document.body.appendChild(tempElement);
-      
-      // Get the natural dimensions
-      const naturalWidth = Math.max(tempElement.scrollWidth, tempElement.offsetWidth);
-      const naturalHeight = Math.max(tempElement.scrollHeight, tempElement.offsetHeight);
-      
-      document.body.removeChild(tempElement);
-      
-      // Calculate new dimensions with constraints
-      const minWidth = 80;
-      const minHeight = Math.max(30, (element.fontSize || 18) * 1.4 + 16);
-      
-      // Constrain to canvas boundaries
-      const maxWidth = Math.max(minWidth, canvasWidth - element.x - 10);
-      const maxHeight = Math.max(minHeight, canvasHeight - element.y - 10);
-      
-      // Add some padding for comfortable text display
-      const newWidth = Math.max(minWidth, Math.min(maxWidth, naturalWidth + 20));
-      const newHeight = Math.max(minHeight, Math.min(maxHeight, naturalHeight + 10));
-      
-      // Only update if there's a significant change (threshold of 5px to prevent excessive updates)
-      if (Math.abs(newWidth - element.width) > 5 || Math.abs(newHeight - element.height) > 5) {
-        onUpdate({
-          width: newWidth,
-          height: newHeight
-        });
-      }
-    }
-  }, [element, onUpdate]);
-
-  const saveTextContent = () => {
-    if (textRef.current) {
-      // Get the innerHTML to preserve formatting and line breaks
-      let content = textRef.current.innerHTML;
-      
-      // Clean up any unnecessary HTML that might be added by contentEditable
-      content = content
-        .replace(/<div><br><\/div>/g, '<br>')  // Replace empty divs with br
-        .replace(/<div>/g, '<br>')             // Replace div starts with br
-        .replace(/<\/div>/g, '')               // Remove div ends
-        .replace(/^<br>/, '')                  // Remove leading br
-        .replace(/<br>$/, '');                 // Remove trailing br
-      
-      onUpdate({ content: content || 'Double-click to edit' });
-    }
-  };
-
-  // Debounced resize function to prevent too many updates
-  const debouncedResize = useCallback(
-    debounce(() => {
-      resizeTextContainer();
-    }, 100),
-    [resizeTextContainer]
-  );
-
-  // Text formatting functions
-  const applyTextFormat = (command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    saveTextContent();
-    resizeTextContainer();
-  };
-
-  // Helper function to determine if a color is light
-  const isLightColor = (color: string) => {
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-    const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-    return brightness > 155;
-  };
-
-  // Apply text properties from TextTab to selected text
-  const applyTextProperty = useCallback((property: string, value: any) => {
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0 && textRef.current?.contains(selection.anchorNode)) {
-      const range = selection.getRangeAt(0);
-      
-      if (range.toString().length > 0) {
-        // Apply formatting to selected text
-        switch (property) {
-          case 'fontSize':
-            document.execCommand('fontSize', false, '7'); // Use size 7 as base
-            // Then apply custom size via CSS
-            const selectedElements = textRef.current.querySelectorAll('font[size="7"]');
-            selectedElements.forEach(el => {
-              el.removeAttribute('size');
-              (el as HTMLElement).style.fontSize = `${value}px`;
-            });
-            break;
-          case 'fontWeight':
-            if (value === 'bold' || parseInt(value) >= 600) {
-              document.execCommand('bold', false);
-            } else {
-              // Apply custom weight
-              const span = document.createElement('span');
-              span.style.fontWeight = value;
-              range.surroundContents(span);
-            }
-            break;
-          case 'color':
-            document.execCommand('foreColor', false, value);
-            break;
-          case 'fontFamily':
-            document.execCommand('fontName', false, value);
-            break;
-          case 'textTransform':
-            const span = document.createElement('span');
-            span.style.textTransform = value;
-            range.surroundContents(span);
-            break;
-          case 'textAlign':
-            // Text alignment applies to the whole element
-            onUpdate({ textAlign: value });
-            break;
-          case 'italic':
-            document.execCommand('italic', false);
-            break;
-          case 'underline':
-            document.execCommand('underline', false);
-            break;
-          case 'strikethrough':
-            document.execCommand('strikeThrough', false);
-            break;
-          case 'textStyle':
-            // Apply custom styles like boxed, neon, etc.
-            const styleSpan = document.createElement('span');
-            
-            // Get current font color for boxed styles
-            const currentColor = element.color || '#000000';
-            
-            // Apply the style properties based on the effect type
-            if (value.style) {
-              Object.assign(styleSpan.style, value.style);
-              
-              // Handle special cases for boxed styles with proper contrast
-              if (value.value === 'boxed' || value.value === 'round-boxed') {
-                styleSpan.style.backgroundColor = currentColor;
-                styleSpan.style.color = isLightColor(currentColor) ? '#000000' : '#ffffff';
-                styleSpan.style.border = `2px solid ${currentColor}`;
-              }
-              
-              // Handle neon effect with current color
-              if (value.value === 'neon') {
-                styleSpan.style.textShadow = `0 0 10px ${currentColor}, 0 0 20px ${currentColor}, 0 0 30px ${currentColor}`;
-                styleSpan.style.fontWeight = 'bold';
-                styleSpan.style.color = currentColor;
-              }
-              
-              // Handle outlined effect
-              if (value.value === 'outlined') {
-                styleSpan.style.WebkitTextStroke = `2px ${currentColor}`;
-                styleSpan.style.color = 'transparent';
-              }
-            }
-            
-            try {
-              range.surroundContents(styleSpan);
-            } catch (e) {
-              // If surroundContents fails, try extractContents and appendChild
-              const contents = range.extractContents();
-              styleSpan.appendChild(contents);
-              range.insertNode(styleSpan);
-            }
-            break;
-        }
-        
-        saveTextContent();
-        resizeTextContainer();
-        selection.removeAllRanges();
-        setShowTextToolbar(false);
-      }
-    }
-  }, [onUpdate]);
-
-  // Expose the applyTextProperty function globally for TextTab to use
-  useEffect(() => {
-    if (isSelected && element.type === 'text') {
-      (window as any).applyTextPropertyToSelected = applyTextProperty;
+  // Simple text content management
+  const getDisplayContent = () => {
+    if (!element.content || element.content.trim() === '') {
+      return isEditing ? '' : 'Double-click to edit';
     }
     
-    return () => {
-      if ((window as any).applyTextPropertyToSelected === applyTextProperty) {
-        delete (window as any).applyTextPropertyToSelected;
+    // Check for placeholder content
+    const placeholders = ['Double-click to edit', 'Click to edit text', 'Your text here'];
+    if (placeholders.includes(element.content)) {
+      return isEditing ? '' : 'Double-click to edit';
+    }
+    
+    return element.content;
+  };
+
+  // Start editing mode with improved cursor positioning
+  const startEditing = () => {
+    setIsEditing(true);
+    
+    // Use requestAnimationFrame for better timing
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (textRef.current) {
+          // Clear placeholder content first if needed
+          const isPlaceholder = !element.content || 
+                               element.content === 'Double-click to edit' || 
+                               element.content === 'Click to edit text' ||
+                               element.content === 'Your text here' ||
+                               element.content.trim() === '';
+          
+          if (isPlaceholder) {
+            textRef.current.textContent = '';
+          }
+          
+          textRef.current.focus();
+          
+          // Position cursor with better error handling
+          try {
+            const selection = window.getSelection();
+            if (!selection) return;
+            
+            selection.removeAllRanges();
+            const range = document.createRange();
+            
+            // More robust cursor positioning
+            if (textRef.current.firstChild && textRef.current.firstChild.nodeType === Node.TEXT_NODE) {
+              // Position at end of text node
+              const textNode = textRef.current.firstChild;
+              range.setStart(textNode, textNode.textContent?.length || 0);
+            } else if (textRef.current.childNodes.length > 0) {
+              // Position at end of last child
+              range.setStartAfter(textRef.current.lastChild!);
+            } else {
+              // Position at start of empty element
+              range.setStart(textRef.current, 0);
+            }
+            
+            range.collapse(true);
+            selection.addRange(range);
+          } catch (error) {
+            console.warn('Cursor positioning failed:', error);
+            // Fallback: just focus and let browser handle it
+            if (textRef.current) {
+              textRef.current.focus();
+            }
+          }
+        }
+      }, 50); // Increased timeout for better reliability
+    });
+  };
+
+  // Stop editing and save content
+  const stopEditing = () => {
+    if (!textRef.current) return;
+    
+    const textContent = textRef.current.textContent || '';
+    const trimmedContent = textContent.trim();
+    
+    // Save content or set placeholder
+    if (trimmedContent) {
+      onUpdate({ content: trimmedContent });
+    } else {
+      onUpdate({ content: 'Double-click to edit' });
+    }
+    
+    setIsEditing(false);
+  };
+
+  // Handle text input with improved debouncing
+  const handleTextInput = useCallback(() => {
+    if (!isEditing || !textRef.current) return;
+    
+    const textContent = textRef.current.textContent || '';
+    if (textContent.trim()) {
+      // Clear any existing timeout
+      if ((window as any).textSaveTimeout) {
+        clearTimeout((window as any).textSaveTimeout);
+      }
+      
+      // Debounced save - only save if there's actual content
+      (window as any).textSaveTimeout = setTimeout(() => {
+        onUpdate({ content: textContent });
+      }, 1000); // Increased timeout to reduce interruptions
+    }
+  }, [isEditing, onUpdate]);
+
+  // Handle double-click to start editing
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (element.type === 'text' && !element.locked) {
+      e.stopPropagation();
+      startEditing();
+    }
+  };
+
+  // Handle content when starting to edit
+  useEffect(() => {
+    if (isEditing && textRef.current) {
+      const isPlaceholder = !element.content || 
+                           element.content === 'Double-click to edit' || 
+                           element.content === 'Click to edit text' ||
+                           element.content === 'Your text here' ||
+                           element.content.trim() === '';
+      
+      if (!isPlaceholder) {
+        textRef.current.textContent = element.content;
+      }
+    }
+  }, [isEditing, element.content]);
+
+  // Handle click outside to stop editing
+  useEffect(() => {
+    if (!isEditing) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (textRef.current && !textRef.current.contains(e.target as Node)) {
+        stopEditing();
       }
     };
-  }, [isSelected, element.type, applyTextProperty]);
 
-  const handleTextSelection = () => {
-    const selection = window.getSelection();
-    if (selection && selection.toString().length > 0 && textRef.current?.contains(selection.anchorNode)) {
-      setSelectedText(selection.toString());
-      
-      // Get selection position for toolbar
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      const elementRect = elementRef.current?.getBoundingClientRect();
-      
-      if (elementRect) {
-        setToolbarPosition({
-          x: rect.left - elementRect.left + rect.width / 2,
-          y: rect.top - elementRect.top - 50
-        });
-        setShowTextToolbar(true);
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        stopEditing();
       }
-    } else {
-      setShowTextToolbar(false);
-      setSelectedText('');
-    }
-  };
+    };
 
-  // Text formatting toolbar component
-  const TextFormattingToolbar = () => {
-    if (!showTextToolbar || !isEditing) return null;
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
 
-    const formatButtons = [
-      { command: 'bold', icon: Bold, title: 'Bold', shortcut: 'Ctrl+B' },
-      { command: 'italic', icon: Italic, title: 'Italic', shortcut: 'Ctrl+I' },
-      { command: 'underline', icon: Underline, title: 'Underline', shortcut: 'Ctrl+U' },
-    ];
-
-    const colorOptions = [
-      '#000000', '#ffffff', '#ff4940', '#6366f1', '#8b5cf6', 
-      '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#64748b'
-    ];
-
-    return (
-      <div
-        className="absolute z-50 bg-gray-800 border border-gray-600 rounded-lg shadow-lg p-2 flex items-center space-x-1"
-        style={{
-          left: `${toolbarPosition.x - 100}px`,
-          top: `${toolbarPosition.y}px`,
-          transform: 'translateX(-50%)',
-        }}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        {/* Format buttons */}
-        {formatButtons.map((btn) => {
-          const Icon = btn.icon;
-          return (
-            <button
-              key={btn.command}
-              onClick={() => applyTextFormat(btn.command)}
-              className="p-1.5 rounded hover:bg-gray-700 transition-colors"
-              title={`${btn.title} (${btn.shortcut})`}
-            >
-              <Icon className="w-4 h-4 text-gray-300 hover:text-white" />
-            </button>
-          );
-        })}
-        
-        {/* Divider */}
-        <div className="w-px h-6 bg-gray-600 mx-1" />
-        
-        {/* Color picker */}
-        <div className="flex items-center space-x-1">
-          <Palette className="w-4 h-4 text-gray-400" />
-          <div className="flex space-x-1">
-            {colorOptions.slice(0, 5).map((color) => (
-              <button
-                key={color}
-                onClick={() => applyTextFormat('foreColor', color)}
-                className="w-4 h-4 rounded border border-gray-600 hover:scale-110 transition-transform"
-                style={{ backgroundColor: color }}
-                title={`Color: ${color}`}
-              />
-            ))}
-          </div>
-        </div>
-        
-        {/* Font size controls */}
-        <div className="flex items-center space-x-1 ml-2">
-          <button
-            onClick={() => applyTextFormat('fontSize', '1')}
-            className="px-2 py-1 text-xs bg-gray-700 rounded hover:bg-gray-600 text-gray-300"
-            title="Small"
-          >
-            S
-          </button>
-          <button
-            onClick={() => applyTextFormat('fontSize', '3')}
-            className="px-2 py-1 text-xs bg-gray-700 rounded hover:bg-gray-600 text-gray-300"
-            title="Medium"
-          >
-            M
-          </button>
-          <button
-            onClick={() => applyTextFormat('fontSize', '5')}
-            className="px-2 py-1 text-xs bg-gray-700 rounded hover:bg-gray-600 text-gray-300"
-            title="Large"
-          >
-            L
-          </button>
-        </div>
-        
-        {/* Hint text */}
-        <div className="ml-2 text-xs text-gray-400">
-          Use TextTab for more options →
-        </div>
-      </div>
-    );
-  };
-
-  useEffect(() => {
-    if (isEditing && textRef.current) {
-      const textElement = textRef.current;
-      
-      // Focus the element
-      textElement.focus();
-      
-      const handleInput = () => {
-        saveTextContent();
-        debouncedResize();
-      };
-
-      const handlePaste = (e: ClipboardEvent) => {
-        e.preventDefault();
-        const text = e.clipboardData?.getData('text/plain') || '';
-        document.execCommand('insertText', false, text);
-        saveTextContent();
-        debouncedResize();
-      };
-
-      const handleClickOutside = (e: MouseEvent) => {
-        if (textElement && !textElement.contains(e.target as Node)) {
-          setIsEditing(false);
-          setShowTextToolbar(false);
-          saveTextContent();
-          resizeTextContainer();
-        }
-      };
-
-      // Add event listeners
-      textElement.addEventListener('input', handleInput);
-      textElement.addEventListener('paste', handlePaste);
-      document.addEventListener('mousedown', handleClickOutside);
-
-      return () => {
-        textElement.removeEventListener('input', handleInput);
-        textElement.removeEventListener('paste', handlePaste);
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }
-  }, [isEditing, resizeTextContainer, debouncedResize]);
-
-  // Handle text selection for formatting toolbar
-  useEffect(() => {
-    if (isEditing && textRef.current) {
-      const handleSelectionChange = () => {
-        handleTextSelection();
-      };
-
-      document.addEventListener('selectionchange', handleSelectionChange);
-      
-      return () => {
-        document.removeEventListener('selectionchange', handleSelectionChange);
-      };
-    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, [isEditing]);
 
-  // Resize text container when content changes
-  useEffect(() => {
-    if (element.type === 'text' && element.autoWrap !== false) {
-      resizeTextContainer();
-    }
-  }, [element.content, element.fontSize, element.fontFamily, element.fontWeight, resizeTextContainer]);
-
-  // Hide toolbar when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (!elementRef.current?.contains(e.target as Node)) {
-        setShowTextToolbar(false);
-      }
-    };
-
-    if (showTextToolbar) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showTextToolbar]);
+  // ========================================
+  // RESIZE LOGIC - SIMPLIFIED
+  // ========================================
 
   const handleResizeMouseDown = (e: React.MouseEvent, direction: string) => {
     e.preventDefault();
@@ -466,67 +202,75 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
     
     setIsResizing(true);
     setResizeDirection(direction);
-    setResizeStart({
-      x: e.clientX,
-      y: e.clientY,
-      width: element.width,
-      height: element.height
-    });
+    
+    // Capture initial values
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+    const startWidth = element.width;
+    const startHeight = element.height;
+    const startX = element.x;
+    const startY = element.y;
+    
+    // Get canvas boundaries once
+    const canvasElement = document.querySelector('[data-canvas="true"]');
+    const canvasWidth = canvasElement ? canvasElement.clientWidth : 1080;
+    const canvasHeight = canvasElement ? canvasElement.clientHeight : 1080;
     
     const handleResizeMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
+      const deltaX = e.clientX - startMouseX;
+      const deltaY = e.clientY - startMouseY;
       
-      const deltaX = e.clientX - resizeStart.x;
-      const deltaY = e.clientY - resizeStart.y;
-      
-      let newWidth = resizeStart.width;
-      let newHeight = resizeStart.height;
-      let newX = element.x;
-      let newY = element.y;
-      
-      // Get canvas boundaries
-      const canvasElement = document.querySelector('[data-canvas="true"]');
-      const canvasWidth = canvasElement ? canvasElement.clientWidth : 1080;
-      const canvasHeight = canvasElement ? canvasElement.clientHeight : 1080;
+      let newWidth = startWidth;
+      let newHeight = startHeight;
+      let newX = startX;
+      let newY = startY;
       
       switch (direction) {
         case 'se': // Southeast
-          newWidth = Math.max(50, Math.min(canvasWidth - element.x, resizeStart.width + deltaX));
-          newHeight = Math.max(30, Math.min(canvasHeight - element.y, resizeStart.height + deltaY));
+          newWidth = Math.max(20, startWidth + deltaX);
+          newHeight = Math.max(20, startHeight + deltaY);
           break;
         case 'sw': // Southwest
-          newWidth = Math.max(50, resizeStart.width - deltaX);
-          newHeight = Math.max(30, Math.min(canvasHeight - element.y, resizeStart.height + deltaY));
-          newX = Math.max(0, element.x + (resizeStart.width - newWidth));
+          newWidth = Math.max(20, startWidth - deltaX);
+          newHeight = Math.max(20, startHeight + deltaY);
+          newX = startX + (startWidth - newWidth);
           break;
         case 'ne': // Northeast
-          newWidth = Math.max(50, Math.min(canvasWidth - element.x, resizeStart.width + deltaX));
-          newHeight = Math.max(30, resizeStart.height - deltaY);
-          newY = Math.max(0, element.y + (resizeStart.height - newHeight));
+          newWidth = Math.max(20, startWidth + deltaX);
+          newHeight = Math.max(20, startHeight - deltaY);
+          newY = startY + (startHeight - newHeight);
           break;
         case 'nw': // Northwest
-          newWidth = Math.max(50, resizeStart.width - deltaX);
-          newHeight = Math.max(30, resizeStart.height - deltaY);
-          newX = Math.max(0, element.x + (resizeStart.width - newWidth));
-          newY = Math.max(0, element.y + (resizeStart.height - newHeight));
+          newWidth = Math.max(20, startWidth - deltaX);
+          newHeight = Math.max(20, startHeight - deltaY);
+          newX = startX + (startWidth - newWidth);
+          newY = startY + (startHeight - newHeight);
           break;
         case 'n': // North (top edge)
-          newHeight = Math.max(30, resizeStart.height - deltaY);
-          newY = Math.max(0, element.y + (resizeStart.height - newHeight));
+          newHeight = Math.max(20, startHeight - deltaY);
+          newY = startY + (startHeight - newHeight);
           break;
         case 's': // South (bottom edge)
-          newHeight = Math.max(30, Math.min(canvasHeight - element.y, resizeStart.height + deltaY));
+          newHeight = Math.max(20, startHeight + deltaY);
           break;
         case 'w': // West (left edge)
-          newWidth = Math.max(50, resizeStart.width - deltaX);
-          newX = Math.max(0, element.x + (resizeStart.width - newWidth));
+          newWidth = Math.max(20, startWidth - deltaX);
+          newX = startX + (startWidth - newWidth);
           break;
         case 'e': // East (right edge)
-          newWidth = Math.max(50, Math.min(canvasWidth - element.x, resizeStart.width + deltaX));
+          newWidth = Math.max(20, startWidth + deltaX);
           break;
       }
       
-      // Ensure element stays within canvas bounds
+      // Constrain to canvas bounds
+      if (newX < 0) {
+        newWidth += newX;
+        newX = 0;
+      }
+      if (newY < 0) {
+        newHeight += newY;
+        newY = 0;
+      }
       if (newX + newWidth > canvasWidth) {
         newWidth = canvasWidth - newX;
       }
@@ -534,11 +278,16 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
         newHeight = canvasHeight - newY;
       }
       
+      // Ensure minimum size
+      newWidth = Math.max(20, newWidth);
+      newHeight = Math.max(20, newHeight);
+      
+      // Update element
       onUpdate({
-        x: newX,
-        y: newY,
-        width: newWidth,
-        height: newHeight
+        x: Math.round(newX),
+        y: Math.round(newY),
+        width: Math.round(newWidth),
+        height: Math.round(newHeight)
       });
     };
     
@@ -547,124 +296,62 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
       setResizeDirection('');
       document.removeEventListener('mousemove', handleResizeMouseMove);
       document.removeEventListener('mouseup', handleResizeMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
+    
+    // Set cursor and prevent text selection during resize
+    document.body.style.cursor = getComputedStyle(e.target as Element).cursor;
+    document.body.style.userSelect = 'none';
     
     document.addEventListener('mousemove', handleResizeMouseMove);
     document.addEventListener('mouseup', handleResizeMouseUp);
   };
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    if (element.type === 'text' && !element.locked) {
-      e.stopPropagation();
-      setIsEditing(true);
-      // Focus the text element after a brief delay to ensure it's ready
-      setTimeout(() => {
-        if (textRef.current) {
-          textRef.current.focus();
-          // Place cursor at the end of text
-          const range = document.createRange();
-          const selection = window.getSelection();
-          range.selectNodeContents(textRef.current);
-          range.collapse(false);
-          selection?.removeAllRanges();
-          selection?.addRange(range);
-        }
-      }, 10);
-    }
-  };
-
-  const handleTextInput = (e: React.FormEvent) => {
-    // Save content on input
-    saveTextContent();
-    // Trigger resize for content changes
-    debouncedResize();
-  };
-
-  const handleTextBlur = () => {
-    setIsEditing(false);
-    setShowTextToolbar(false);
-    saveTextContent();
-    resizeTextContainer();
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Don't prevent default for normal text editing keys
-    if (isEditing) {
-      // Allow all normal text editing
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setIsEditing(false);
-        setShowTextToolbar(false);
-        saveTextContent();
-        resizeTextContainer();
-        return;
-      }
-      
-      // Handle formatting shortcuts
-      if (e.ctrlKey || e.metaKey) {
-        switch (e.key) {
-          case 'b':
-            e.preventDefault();
-            applyTextFormat('bold');
-            break;
-          case 'i':
-            e.preventDefault();
-            applyTextFormat('italic');
-            break;
-          case 'u':
-            e.preventDefault();
-            applyTextFormat('underline');
-            break;
-          default:
-            // Allow other Ctrl/Cmd shortcuts (like Ctrl+A, Ctrl+C, etc.)
-            break;
-        }
-      }
-      
-      // Don't stop propagation for text editing keys
-      return;
-    }
-    
-    // Handle non-editing key events
-    e.stopPropagation();
-  };
-
-  const handleTextMouseDown = (e: React.MouseEvent) => {
-    // For text elements when not editing, allow normal dragging
-    if (!isEditing && element.type === 'text') {
-      handleMouseDown(e);
-    }
-  };
-
   const handleMouseDown = (e: React.MouseEvent) => {
     if (element.locked || isEditing || isResizing) return;
+    
+    // Check if we're clicking on a resize handle
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-resize-handle]')) return;
     
     e.preventDefault();
     e.stopPropagation();
     
     onSelect();
     setIsDragging(true);
-    setDragStart({ x: e.clientX - element.x, y: e.clientY - element.y });
+    
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+    const startElementX = element.x;
+    const startElementY = element.y;
+    
+    // Get canvas boundaries
+    const canvasElement = document.querySelector('[data-canvas="true"]');
+    const canvasWidth = canvasElement ? canvasElement.clientWidth : 1080;
+    const canvasHeight = canvasElement ? canvasElement.clientHeight : 1080;
     
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
+      const deltaX = e.clientX - startMouseX;
+      const deltaY = e.clientY - startMouseY;
       
-      // Get canvas boundaries
-      const canvasElement = document.querySelector('[data-canvas="true"]');
-      const canvasWidth = canvasElement ? canvasElement.clientWidth : 1080;
-      const canvasHeight = canvasElement ? canvasElement.clientHeight : 1080;
+      const newX = Math.max(0, Math.min(canvasWidth - element.width, startElementX + deltaX));
+      const newY = Math.max(0, Math.min(canvasHeight - element.height, startElementY + deltaY));
       
-      const newX = Math.max(0, Math.min(canvasWidth - element.width, e.clientX - dragStart.x));
-      const newY = Math.max(0, Math.min(canvasHeight - element.height, e.clientY - dragStart.y));
-      
-      onUpdate({ x: newX, y: newY });
+      onUpdate({ x: Math.round(newX), y: Math.round(newY) });
     };
     
     const handleMouseUp = () => {
       setIsDragging(false);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
+    
+    // Set cursor and prevent text selection during drag
+    document.body.style.cursor = 'move';
+    document.body.style.userSelect = 'none';
     
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
@@ -795,6 +482,9 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
   const renderElement = () => {
     switch (element.type) {
       case 'text':
+        // Determine what content to display
+        let displayContent = getDisplayContent();
+
         return (
           <div
             ref={textRef}
@@ -822,19 +512,32 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
               outline: isEditing ? '2px solid #6366f1' : 'none',
               outlineOffset: isEditing ? '2px' : '0',
               hyphens: 'auto',
+              opacity: displayContent === 'Double-click to edit' ? 0.5 : 1,
               ...element.customStyle,
             }}
             contentEditable={isEditing && !element.locked}
             suppressContentEditableWarning
             onInput={handleTextInput}
-            onBlur={handleTextBlur}
-            onKeyDown={handleKeyDown}
-            onMouseDown={isEditing ? undefined : handleTextMouseDown}
+            onBlur={(e) => {
+              // Only stop editing if we're actually losing focus to something outside
+              setTimeout(() => {
+                if (document.activeElement !== textRef.current) {
+                  stopEditing();
+                }
+              }, 100);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                stopEditing();
+              }
+            }}
+            onMouseDown={isEditing ? undefined : handleMouseDown}
             onMouseUp={(e) => isEditing && e.stopPropagation()}
             onMouseMove={(e) => isEditing && e.stopPropagation()}
-            onSelect={handleTextSelection}
-            dangerouslySetInnerHTML={{ __html: element.content || 'Double-click to edit' }}
-          />
+          >
+            {!isEditing ? displayContent : ''}
+          </div>
         );
         
       case 'button':
@@ -966,7 +669,7 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
       data-element-id={element.id}
       className={`absolute select-none group ${
         element.locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : (element.type === 'text' ? 'cursor-move hover:bg-blue-50 hover:bg-opacity-10' : 'cursor-move'))
-      } ${isSelected ? 'ring-2 ring-indigo-500' : ''}`}
+      } ${isSelected ? 'ring-2' : ''}`}
       style={{
         left: `${element.x}px`,
         top: `${element.y}px`,
@@ -979,7 +682,8 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
         transform: `scale(${isDragging || isResizing ? 1.02 : 1})`,
         userSelect: isEditing ? 'text' : 'none',
         WebkitUserSelect: isEditing ? 'text' : 'none',
-        touchAction: 'none'
+        touchAction: 'none',
+        borderColor: isSelected ? '#ff4940' : 'transparent'
       }}
       onMouseDown={!isEditing && element.type !== 'text' ? handleMouseDown : undefined}
       onDoubleClick={handleDoubleClick}
@@ -999,9 +703,6 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
         />
       )}
       
-      {/* Text Formatting Toolbar */}
-      <TextFormattingToolbar />
-      
       {/* Selection Controls */}
       {isSelected && !isEditing && (
         <>
@@ -1009,43 +710,59 @@ export function CanvasElement({ element, isSelected, onSelect, onUpdate, onDelet
           {!element.locked && (
             <>
               <div
-                className="absolute -top-2 -left-2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-nw-resize shadow-lg hover:bg-indigo-400 transition-colors"
+                data-resize-handle="nw"
+                className="absolute -top-2 -left-2 w-4 h-4 border-2 border-white rounded-full cursor-nw-resize shadow-lg hover:opacity-80 transition-colors z-20"
+                style={{ backgroundColor: '#ff4940', pointerEvents: 'auto' }}
                 onMouseDown={(e) => handleResizeMouseDown(e, 'nw')}
                 title="Resize from top-left corner"
               />
               <div
-                className="absolute -top-2 -right-2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-ne-resize shadow-lg hover:bg-indigo-400 transition-colors"
+                data-resize-handle="ne"
+                className="absolute -top-2 -right-2 w-4 h-4 border-2 border-white rounded-full cursor-ne-resize shadow-lg hover:opacity-80 transition-colors z-20"
+                style={{ backgroundColor: '#ff4940', pointerEvents: 'auto' }}
                 onMouseDown={(e) => handleResizeMouseDown(e, 'ne')}
                 title="Resize from top-right corner"
               />
               <div
-                className="absolute -bottom-2 -left-2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-sw-resize shadow-lg hover:bg-indigo-400 transition-colors"
+                data-resize-handle="sw"
+                className="absolute -bottom-2 -left-2 w-4 h-4 border-2 border-white rounded-full cursor-sw-resize shadow-lg hover:opacity-80 transition-colors z-20"
+                style={{ backgroundColor: '#ff4940', pointerEvents: 'auto' }}
                 onMouseDown={(e) => handleResizeMouseDown(e, 'sw')}
                 title="Resize from bottom-left corner"
               />
               <div
-                className="absolute -bottom-2 -right-2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-se-resize shadow-lg hover:bg-indigo-400 transition-colors"
+                data-resize-handle="se"
+                className="absolute -bottom-2 -right-2 w-4 h-4 border-2 border-white rounded-full cursor-se-resize shadow-lg hover:opacity-80 transition-colors z-20"
+                style={{ backgroundColor: '#ff4940', pointerEvents: 'auto' }}
                 onMouseDown={(e) => handleResizeMouseDown(e, 'se')}
                 title="Resize from bottom-right corner"
               />
               {/* Edge handles for better UX */}
               <div
-                className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-n-resize shadow-lg hover:bg-indigo-400 transition-colors"
+                data-resize-handle="n"
+                className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 border-2 border-white rounded-full cursor-n-resize shadow-lg hover:opacity-80 transition-colors z-20"
+                style={{ backgroundColor: '#ff4940', pointerEvents: 'auto' }}
                 onMouseDown={(e) => handleResizeMouseDown(e, 'n')}
                 title="Resize from top edge"
               />
               <div
-                className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-s-resize shadow-lg hover:bg-indigo-400 transition-colors"
+                data-resize-handle="s"
+                className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 border-2 border-white rounded-full cursor-s-resize shadow-lg hover:opacity-80 transition-colors z-20"
+                style={{ backgroundColor: '#ff4940', pointerEvents: 'auto' }}
                 onMouseDown={(e) => handleResizeMouseDown(e, 's')}
                 title="Resize from bottom edge"
               />
               <div
-                className="absolute -left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-w-resize shadow-lg hover:bg-indigo-400 transition-colors"
+                data-resize-handle="w"
+                className="absolute -left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 border-2 border-white rounded-full cursor-w-resize shadow-lg hover:opacity-80 transition-colors z-20"
+                style={{ backgroundColor: '#ff4940', pointerEvents: 'auto' }}
                 onMouseDown={(e) => handleResizeMouseDown(e, 'w')}
                 title="Resize from left edge"
               />
               <div
-                className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-e-resize shadow-lg hover:bg-indigo-400 transition-colors"
+                data-resize-handle="e"
+                className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 border-2 border-white rounded-full cursor-e-resize shadow-lg hover:opacity-80 transition-colors z-20"
+                style={{ backgroundColor: '#ff4940', pointerEvents: 'auto' }}
                 onMouseDown={(e) => handleResizeMouseDown(e, 'e')}
                 title="Resize from right edge"
               />

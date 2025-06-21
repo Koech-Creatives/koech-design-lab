@@ -17,7 +17,7 @@ interface HeaderProps {
 }
 
 const platforms = [
-  { id: 'instagram', name: 'Instagram', color: 'bg-gradient-to-r from-purple-500 to-pink-500' },
+      { id: 'instagram', name: 'Instagram', color: 'bg-gradient-to-r from-red-500 to-pink-500' },
   { id: 'linkedin', name: 'LinkedIn', color: 'bg-blue-600' },
   { id: 'twitter', name: 'Twitter/X', color: 'bg-black' },
   { id: 'tiktok', name: 'TikTok', color: 'bg-gradient-to-r from-cyan-500 to-black-500 to-pink-500' },
@@ -85,21 +85,21 @@ export function Header({
       return;
     }
 
-    // Require authentication for export
-    if (!isAuthenticated) {
-      promptForAuth('export your design', () => exportCanvas(format));
+    const canvasElement = document.querySelector('[data-canvas="true"]') as HTMLElement;
+    if (!canvasElement) {
+      showNotification('Canvas not found. Please try again.', '#dc2626');
       setExportMenuOpen(false);
       return;
     }
-
-    const canvasElement = document.querySelector('[data-canvas="true"]') as HTMLElement;
-    if (!canvasElement) return;
     
     try {
       let fileName = `${selectedPlatform}-design-${Date.now()}`;
       
+      // Show loading notification
+      showNotification('Preparing export...', '#003a63');
+      
       if (format === 'svg') {
-        // SVG export - create SVG from elements
+        // Enhanced SVG export
         const svgContent = await generateSVG(canvasElement);
         const blob = new Blob([svgContent], { type: 'image/svg+xml' });
         const url = URL.createObjectURL(blob);
@@ -108,74 +108,182 @@ export function Header({
         link.href = url;
         link.click();
         URL.revokeObjectURL(url);
-      } else if (format === 'pdf') {
-        // PDF export - requires additional library, for now we'll export as high-res PNG
-        const canvas = await html2canvas(canvasElement, {
-          backgroundColor: canvasBackgroundColor,
-          scale: 3, // Higher resolution for PDF-like quality
-          useCORS: true,
-          allowTaint: true,
-          logging: false,
-        });
-        
-        const link = document.createElement('a');
-        link.download = `${fileName}.png`; // Will be PDF in future implementation
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        
-        // Show notification about PDF coming soon
-        showNotification('PDF export coming soon! Exported as high-res PNG for now.', '#003a63');
       } else {
-        // PNG/JPG export using html2canvas (same as canvas export function)
+        // Enhanced PNG/JPG/PDF export using html2canvas
         
-        // Temporarily hide selection indicators and controls
-        const selectionElements = canvasElement.querySelectorAll('.ring-2, .absolute.bg-indigo-500, .absolute.-top-10');
-        selectionElements.forEach(el => {
-          (el as HTMLElement).style.display = 'none';
+        // Temporarily hide all UI elements that shouldn't be in export
+        const elementsToHide = canvasElement.querySelectorAll(
+          '.ring-2, .ring-red-500, .absolute.bg-red-500, .absolute.-top-10, ' +
+          '.group-hover\\:opacity-100, .opacity-0, [class*="hover:"], ' +
+          '.resize-handle, .selection-controls, .element-controls'
+        );
+        
+        const originalStyles: { element: HTMLElement; display: string; opacity: string }[] = [];
+        
+        elementsToHide.forEach(el => {
+          const htmlEl = el as HTMLElement;
+          originalStyles.push({
+            element: htmlEl,
+            display: htmlEl.style.display,
+            opacity: htmlEl.style.opacity
+          });
+          htmlEl.style.display = 'none';
+          htmlEl.style.opacity = '0';
         });
         
+        // Also hide any editing states
+        const editingElements = canvasElement.querySelectorAll('[contenteditable="true"]');
+        editingElements.forEach(el => {
+          (el as HTMLElement).blur();
+        });
+        
+        // Wait a moment for any animations to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         const canvas = await html2canvas(canvasElement, {
-          backgroundColor: format === 'jpg' ? '#ffffff' : canvasBackgroundColor,
-          scale: 2,
+          backgroundColor: format === 'jpg' ? '#ffffff' : (canvasBackgroundColor || 'transparent'),
+          scale: format === 'pdf' ? 3 : 2, // Higher resolution for PDF
           useCORS: true,
           allowTaint: true,
           logging: false,
+          width: canvasElement.offsetWidth,
+          height: canvasElement.offsetHeight,
+          ignoreElements: (element) => {
+            // Additional filter for elements to ignore
+            return element.classList.contains('ring-2') || 
+                   element.classList.contains('selection-indicator') ||
+                   element.classList.contains('resize-handle');
+          }
         });
         
-        // Restore selection indicators
-        selectionElements.forEach(el => {
-          (el as HTMLElement).style.display = '';
+        // Restore original styles
+        originalStyles.forEach(({ element, display, opacity }) => {
+          element.style.display = display;
+          element.style.opacity = opacity;
         });
         
         const link = document.createElement('a');
-        link.download = `${fileName}.${format}`;
-        link.href = canvas.toDataURL(`image/${format}`, format === 'jpg' ? 0.9 : 1.0);
+        link.download = `${fileName}.${format === 'pdf' ? 'png' : format}`;
+        link.href = canvas.toDataURL(`image/${format === 'pdf' ? 'png' : format}`, format === 'jpg' ? 0.9 : 1.0);
         link.click();
+        
+        if (format === 'pdf') {
+          showNotification('PDF export coming soon! Exported as high-res PNG for now.', '#003a63');
+        }
       }
       
       setExportMenuOpen(false);
-      showNotification(`Design exported as ${format.toUpperCase()}!`, '#ff4940');
+      showNotification(`Design exported as ${format.toUpperCase()}!`, '#10b981');
       
     } catch (error) {
       console.error('Export failed:', error);
       showNotification('Export failed. Please try again.', '#dc2626');
+      setExportMenuOpen(false);
     }
   };
 
   const generateSVG = async (canvasElement: HTMLElement): Promise<string> => {
-    // Basic SVG generation - will be enhanced in future
-    const rect = canvasElement.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
+    const width = canvasElement.offsetWidth;
+    const height = canvasElement.offsetHeight;
     
-    return `
-      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-        <rect width="100%" height="100%" fill="${canvasBackgroundColor}"/>
-        <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" fill="#666">
-          SVG export coming soon!
-        </text>
-      </svg>
-    `;
+    let svgElements = '';
+    
+    // Generate SVG elements from canvas elements
+    elements.forEach(element => {
+      switch (element.type) {
+        case 'text':
+          const fontSize = element.fontSize || 18;
+          const fontFamily = element.fontFamily || 'Arial, sans-serif';
+          const color = element.color || '#000000';
+          const textAlign = element.textAlign || 'left';
+          
+          let textAnchor = 'start';
+          let x = element.x;
+          if (textAlign === 'center') {
+            textAnchor = 'middle';
+            x = element.x + element.width / 2;
+          } else if (textAlign === 'right') {
+            textAnchor = 'end';
+            x = element.x + element.width;
+          }
+          
+          svgElements += `
+            <text x="${x}" y="${element.y + fontSize}" 
+                  font-family="${fontFamily}" 
+                  font-size="${fontSize}" 
+                  fill="${color}"
+                  text-anchor="${textAnchor}"
+                  font-weight="${element.fontWeight || 'normal'}"
+                  font-style="${element.fontStyle || 'normal'}"
+                  text-decoration="${element.textDecoration || 'none'}">
+              ${escapeXml(element.content || '')}
+            </text>`;
+          break;
+          
+        case 'rectangle':
+        case 'square':
+          svgElements += `
+            <rect x="${element.x}" y="${element.y}" 
+                  width="${element.width}" height="${element.height}" 
+                  fill="${element.backgroundColor || element.color || '#000000'}"
+                  rx="${element.borderRadius || 0}"/>`;
+          break;
+          
+        case 'circle':
+          const radius = Math.min(element.width, element.height) / 2;
+          const cx = element.x + element.width / 2;
+          const cy = element.y + element.height / 2;
+          svgElements += `
+            <circle cx="${cx}" cy="${cy}" r="${radius}" 
+                    fill="${element.backgroundColor || element.color || '#000000'}"/>`;
+          break;
+          
+        case 'line':
+          svgElements += `
+            <line x1="${element.x}" y1="${element.y + element.height / 2}" 
+                  x2="${element.x + element.width}" y2="${element.y + element.height / 2}" 
+                  stroke="${element.backgroundColor || element.color || '#000000'}" 
+                  stroke-width="${element.height || 2}"/>`;
+          break;
+          
+        case 'image':
+          // For images, we'll add a placeholder rectangle for now
+          svgElements += `
+            <rect x="${element.x}" y="${element.y}" 
+                  width="${element.width}" height="${element.height}" 
+                  fill="#f0f0f0" stroke="#ccc" stroke-width="1"/>
+            <text x="${element.x + element.width / 2}" y="${element.y + element.height / 2}" 
+                  text-anchor="middle" dominant-baseline="middle" 
+                  font-size="12" fill="#666">Image</text>`;
+          break;
+          
+        default:
+          // Generic shape
+          svgElements += `
+            <rect x="${element.x}" y="${element.y}" 
+                  width="${element.width}" height="${element.height}" 
+                  fill="${element.backgroundColor || element.color || '#000000'}"/>`;
+      }
+    });
+    
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100%" height="100%" fill="${canvasBackgroundColor || '#ffffff'}"/>
+  ${svgElements}
+</svg>`;
+  };
+
+  const escapeXml = (unsafe: string): string => {
+    return unsafe.replace(/[<>&'"]/g, (c) => {
+      switch (c) {
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '&': return '&amp;';
+        case "'": return '&apos;';
+        case '"': return '&quot;';
+        default: return c;
+      }
+    });
   };
 
   const showNotification = (message: string, color: string) => {
@@ -211,8 +319,8 @@ export function Header({
   const exportOptions = [
     { format: 'png' as const, label: 'PNG (Transparent)', description: 'Best for web, transparent background' },
     { format: 'jpg' as const, label: 'JPG (Compressed)', description: 'Smaller file size, white background' },
+    { format: 'svg' as const, label: 'SVG (Vector)', description: 'Scalable vector format, perfect quality' },
     { format: 'pdf' as const, label: 'PDF (Print)', description: 'High quality for printing (coming soon)' },
-    { format: 'svg' as const, label: 'SVG (Vector)', description: 'Scalable vector format (coming soon)' },
   ];
 
   const AboutModal = () => (
@@ -284,12 +392,12 @@ export function Header({
               <div className="flex items-center space-x-1.5">
                 <a 
                   href="https://koech-labs.onrender.com/" 
-                  className="text-xs font-bold text-white opacity-60 hover:opacity-80 transition-opacity"
+                  className="text-s font-bold text-white opacity-60 hover:opacity-80 transition-opacity"
                   target="_blank"
                   rel="noopener noreferrer"
                   title="Back to Koech Labs"
                 >
-                  Frames by Koech Labs
+                  Frames
                 </a>
                 <span 
                   className="px-1.5 py-0.5 text-xs font-medium rounded-full"
@@ -509,7 +617,7 @@ export function Header({
                 className="text-xs font-bold text-white opacity-60 hover:opacity-80 transition-opacity"
                 title="Back to Koech Labs"
               >
-                Frames by Koech Labs
+                Frames
               </a>
               <span 
                 className="px-1 py-0.5 text-xs font-medium rounded-full"
