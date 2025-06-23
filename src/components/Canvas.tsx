@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { PlatformSpecs } from '../utils/platformSpecs';
 import { SafeZones } from './SafeZones';
 import { CanvasElement } from './CanvasElement';
+import { SaveIndicator } from './SaveIndicator';
 import { useCanvas } from '../contexts/CanvasContext';
 import { useTools } from '../contexts/ToolsContext';
 import { useBackground } from '../contexts/BackgroundContext';
@@ -19,9 +20,24 @@ interface CanvasProps {
 }
 
 export function Canvas({ platform, template, onFormatChange, panelsCollapsed, onTogglePanelsCollapse }: CanvasProps) {
+  console.log('🎨 Canvas component rendering with platform:', platform);
+  
   const canvasRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { elements, addElement, updateElement, selectElement, selectedElement, clearCanvas, removeElement, duplicateElement } = useCanvas();
+  const { 
+    elements, 
+    addElement, 
+    updateElement, 
+    selectElement, 
+    selectedElement, 
+    clearCanvas, 
+    removeElement, 
+    duplicateElement,
+    savePlatformFormat,
+    loadPlatformFormat,
+    resizeElementsForFormat,
+    setElements
+  } = useCanvas();
   const { selectedTool, getToolCursor } = useTools();
   const { canvasBackgroundColor, setCanvasBackgroundColor, getDefaultCanvasColor } = useBackground();
   const { currentPageId, updatePageElements, getCurrentPageElements } = usePages();
@@ -30,6 +46,8 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
   
   const specs = PlatformSpecs[platform as keyof typeof PlatformSpecs] || PlatformSpecs.instagram;
   const [currentFormat, setCurrentFormat] = useState(specs.formats[0]);
+  const [previousFormat, setPreviousFormat] = useState(specs.formats[0]);
+  const [previousPlatform, setPreviousPlatform] = useState(platform);
   const [showSafeZones, setShowSafeZones] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(0.8);
@@ -38,7 +56,13 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [showDimensionsPanel, setShowDimensionsPanel] = useState(true);
   const [sampledColor, setSampledColor] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [showSyncTip, setShowSyncTip] = useState(false);
   const isLoadingElementsRef = useRef(false);
+  const isSwitchingPlatformRef = useRef(false);
+  const lastClickTimeRef = useRef(0);
+  const clickDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Editor background with subtle brand integration
   const getEditorBackgroundStyle = () => {
@@ -69,10 +93,64 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
     return baseStyle;
   };
 
+  // Auto-save current state before switching platforms/formats
+  const autoSaveCurrentState = useCallback(() => {
+    if (!isSwitchingPlatformRef.current && elements.length > 0) {
+      savePlatformFormat(previousPlatform, previousFormat, canvasBackgroundColor);
+    }
+  }, [elements, previousPlatform, previousFormat, canvasBackgroundColor, savePlatformFormat]);
+
+  // Handle platform changes with INSTANT element preservation and resizing
   useEffect(() => {
-    // When platform changes, update to the first format of that platform
-    setCurrentFormat(specs.formats[0]);
-  }, [platform]);
+    if (platform !== previousPlatform) {
+      console.log(`🌐 INSTANT platform sync: ${previousPlatform} → ${platform}`);
+      isSwitchingPlatformRef.current = true;
+      
+      // IMMEDIATE save of current state
+      if (elements.length > 0) {
+        savePlatformFormat(previousPlatform, previousFormat, canvasBackgroundColor);
+      }
+      
+      // Update to first format of new platform
+      const newFormat = specs.formats[0];
+      
+      // IMMEDIATE load and resize for new platform
+      let resizedElements: any[] = [];
+      const loadedElements = loadPlatformFormat(platform, newFormat, elements);
+      if (loadedElements.length > 0) {
+        resizedElements = loadedElements;
+        console.log(`⚡ Instant loaded ${loadedElements.length} elements for ${platform}`);
+      } else if (elements.length > 0) {
+        // Resize current elements for new platform
+        resizedElements = resizeElementsForFormat(elements, previousFormat, newFormat);
+        console.log(`🔄 Instant resized ${elements.length} elements for ${platform}`);
+      }
+      
+      // IMMEDIATE state updates
+      setCurrentFormat(newFormat);
+      setPreviousFormat(newFormat);
+      setPreviousPlatform(platform);
+      
+      if (resizedElements.length > 0) {
+        setElements(resizedElements);
+      }
+      
+      // Reset switching flag immediately
+      isSwitchingPlatformRef.current = false;
+      
+      // Update canvas size
+      requestAnimationFrame(() => {
+        updateCanvasSize();
+      });
+    } else {
+      // Ensure current format matches the platform's default
+      const newFormat = specs.formats[0];
+      if (currentFormat.name !== newFormat.name || currentFormat.width !== newFormat.width || currentFormat.height !== newFormat.height) {
+        setCurrentFormat(newFormat);
+        setPreviousFormat(newFormat);
+      }
+    }
+  }, [platform, specs.formats, previousPlatform, elements, previousFormat, canvasBackgroundColor, savePlatformFormat, loadPlatformFormat, resizeElementsForFormat, setElements]);
 
   useEffect(() => {
     if (template && template.elements) {
@@ -92,6 +170,42 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
       updatePageElements(currentPageId, elements);
     }
   }, [elements, currentPageId]);
+
+  // INSTANT sync on element changes for real-time cross-platform editing
+  useEffect(() => {
+    // Only sync if we have elements and we're not in the middle of a platform switch
+    if (!isSwitchingPlatformRef.current && elements.length > 0) {
+      // Immediate sync to current platform/format
+      savePlatformFormat(platform, currentFormat, canvasBackgroundColor);
+      console.log(`⚡ INSTANT sync: Saved ${elements.length} elements to ${platform} ${currentFormat.name}`);
+    }
+  }, [elements]); // Triggers on ANY element change
+
+  // REAL-TIME auto-save for instant sync
+  useEffect(() => {
+    if (!isSwitchingPlatformRef.current && elements.length > 0) {
+      setIsSaving(true);
+      
+      const autoSaveTimeout = setTimeout(() => {
+        try {
+          savePlatformFormat(platform, currentFormat, canvasBackgroundColor);
+          setLastSaved(new Date());
+          console.log(`💾 Auto-saved ${elements.length} elements for ${platform} ${currentFormat.name}`);
+        } catch (error) {
+          console.error('Auto-save failed:', error);
+        } finally {
+          setIsSaving(false);
+        }
+      }, 800); // Faster auto-save for real-time sync
+      
+      return () => {
+        clearTimeout(autoSaveTimeout);
+        setIsSaving(false);
+      };
+    } else {
+      setIsSaving(false);
+    }
+  }, [elements, platform, currentFormat, canvasBackgroundColor, savePlatformFormat]);
 
   // Load elements for current page
   useEffect(() => {
@@ -115,7 +229,15 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
     updateCanvasSize();
     window.addEventListener('resize', updateCanvasSize);
     return () => window.removeEventListener('resize', updateCanvasSize);
-  }, [currentFormat, zoomLevel]);
+  }, [currentFormat, zoomLevel, showDimensionsPanel]);
+  
+  // Additional useEffect for instant format changes
+  useEffect(() => {
+    // Immediate update when format dimensions change
+    updateCanvasSize();
+    // Additional rapid updates to ensure smooth visual transition
+    requestAnimationFrame(() => updateCanvasSize());
+  }, [currentFormat.width, currentFormat.height, currentFormat.name]);
 
   const updateCanvasSize = () => {
     if (!containerRef.current) return;
@@ -205,7 +327,20 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
           setTimeout(() => setSampledColor(null), 3000);
           break;
         case 'text':
-          // Add text element at click position
+          // Prevent rapid text element creation with debouncing
+          const currentTime = Date.now();
+          if (currentTime - lastClickTimeRef.current < 500) {
+            console.log('🔧 Text tool: Click ignored due to debouncing');
+            return;
+          }
+          lastClickTimeRef.current = currentTime;
+
+          // Clear any existing timeout
+          if (clickDebounceTimeoutRef.current) {
+            clearTimeout(clickDebounceTimeoutRef.current);
+          }
+
+          // Add text element at click position with debounce
           const rect = canvasRef.current?.getBoundingClientRect();
           if (rect) {
             const clickX = (e.clientX - rect.left) / zoomLevel;
@@ -215,21 +350,26 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
             const textX = Math.max(0, Math.min(clickX - 100, currentFormat.width - 200));
             const textY = Math.max(0, Math.min(clickY - 20, currentFormat.height - 40));
             
-            addElement({
-              type: 'text',
-              x: textX,
-              y: textY,
-              width: 200,
-              height: 40,
-              content: 'Click to edit text',
-              color: '#000000',
-              fontSize: 24,
-              fontWeight: '600',
-              fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
-              textAlign: 'center',
-              autoWrap: true,
-            });
-            console.log('🔧 Text tool: Added text element at', textX, textY);
+            // Debounced text creation
+            clickDebounceTimeoutRef.current = setTimeout(() => {
+              addElement({
+                type: 'text',
+                x: textX,
+                y: textY,
+                width: 200,
+                height: 40,
+                content: 'Click to edit text',
+                color: '#000000',
+                fontSize: 24,
+                fontWeight: '600',
+                fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
+                textAlign: 'center',
+                autoWrap: true,
+                role: 'body',
+                responsive: { mode: 'fluid', anchor: 'top-left' },
+              });
+              console.log('🔧 Text tool: Added text element at', textX, textY);
+            }, 100);
           }
           break;
         case 'line':
@@ -250,6 +390,8 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
               width: 100,
               height: 2,
               backgroundColor: '#000000',
+              role: 'divider',
+              responsive: { mode: 'fluid', anchor: 'top-left' },
             });
             console.log('🔧 Line tool: Added line element at', lineX, lineY);
           }
@@ -311,6 +453,8 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
                 height: 150,
                 content: svgContent,
                 alt: file.name,
+                role: 'image',
+                responsive: { mode: 'fluid', anchor: 'top-left' },
               });
             }
           };
@@ -331,6 +475,8 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
               height: 150,
               src: imageUrl,
               alt: file.name,
+              role: 'image',
+              responsive: { mode: 'fluid', anchor: 'top-left' },
             });
           }
         }
@@ -345,6 +491,14 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
         // Create element based on type
         switch (elementType) {
           case 'text':
+            // Prevent rapid text creation from drag-and-drop
+            const dragCurrentTime = Date.now();
+            if (dragCurrentTime - lastClickTimeRef.current < 500) {
+              console.log('🔧 Text drag-drop: Ignored due to debouncing');
+              return;
+            }
+            lastClickTimeRef.current = dragCurrentTime;
+
             addElement({
               type: 'text',
               x: Math.max(0, x),
@@ -357,6 +511,8 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
               fontFamily: 'Gilmer, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
               textAlign: 'center',
               autoWrap: true,
+              role: 'body',
+              responsive: { mode: 'fluid', anchor: 'top-left' },
             });
             break;
           case 'image':
@@ -367,6 +523,8 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
               width: 200,
               height: 150,
               src: 'https://via.placeholder.com/200x150?text=Image',
+              role: 'image',
+              responsive: { mode: 'fluid', anchor: 'top-left' },
             });
             break;
           case 'line':
@@ -377,6 +535,8 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
               width: 150,
               height: 3,
               backgroundColor: '#000000',
+              role: 'divider',
+              responsive: { mode: 'fluid', anchor: 'top-left' },
             });
             break;
           default:
@@ -388,6 +548,8 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
               height: 100,
               color: '#000000',
               backgroundColor: '#000000',
+              role: 'decoration',
+              responsive: { mode: 'fluid', anchor: 'top-left' },
             });
             break;
         }
@@ -420,19 +582,44 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
   };
 
   const handleFormatChange = (format: { name: string; width: number; height: number }) => {
-    setCurrentFormat(format);
-    if (onFormatChange) {
-      onFormatChange(format);
+    console.log(`🎯 SIMPLE handleFormatChange called: ${JSON.stringify(format)}`);
+    console.log(`🎯 SIMPLE Current format state: ${JSON.stringify(currentFormat)}`);
+    
+    // Check if same format
+    const isSameFormat = (
+      currentFormat.name === format.name && 
+      currentFormat.width === format.width && 
+      currentFormat.height === format.height
+    );
+    
+    console.log(`🔍 SIMPLE Format comparison - isSame: ${isSameFormat}`);
+    
+    if (isSameFormat) {
+      console.log(`⏸️ SIMPLE Format change prevented - same format selected`);
+      return;
     }
     
-    // Reset zoom and pan when changing format
-    setZoomLevel(0.8);
-    setPanOffset({ x: 0, y: 0 });
+    console.log(`🚀 SIMPLE Starting format change: ${currentFormat.name} → ${format.name}`);
     
-    // Update canvas size after format change
-    setTimeout(() => {
-      updateCanvasSize();
-    }, 0);
+    // Update state
+    console.log(`🔄 SIMPLE About to update currentFormat state from:`, currentFormat);
+    console.log(`🔄 SIMPLE About to update currentFormat state to:`, format);
+    
+    console.log('🔄 SIMPLE Calling setCurrentFormat...');
+    setCurrentFormat(format);
+    console.log('🔄 SIMPLE setCurrentFormat called successfully');
+    
+    console.log('🔄 SIMPLE Calling setPreviousFormat...');
+    setPreviousFormat(format);
+    console.log('🔄 SIMPLE setPreviousFormat called successfully');
+    
+    // Force canvas updates
+    console.log(`🔄 SIMPLE Forcing canvas size update`);
+    updateCanvasSize();
+    requestAnimationFrame(() => updateCanvasSize());
+    setTimeout(() => updateCanvasSize(), 100);
+    
+    console.log(`✅ SIMPLE Format change completed: ${format.name} (${format.width}x${format.height})`);
   };
 
   const zoomIn = () => {
@@ -443,8 +630,33 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
     setZoomLevel(prev => Math.max(prev - 0.1, 0.3));
   };
 
+  // Show sync tip when user first adds elements
+  useEffect(() => {
+    if (elements.length === 1 && !showSyncTip) {
+      setShowSyncTip(true);
+      setTimeout(() => setShowSyncTip(false), 8000); // Show for 8 seconds
+    }
+  }, [elements.length, showSyncTip]);
+
+  // Cleanup debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (clickDebounceTimeoutRef.current) {
+        clearTimeout(clickDebounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div className="w-full h-full flex flex-col relative">
+      {/* Save Indicator */}
+      <SaveIndicator 
+        isSaving={isSaving}
+        lastSaved={lastSaved}
+        platform={platform}
+        format={currentFormat.name}
+      />
+      
       {/* Standalone Collapse Button - Always visible */}
       {onTogglePanelsCollapse && (
         <div className="absolute top-4 right-4 z-10">
@@ -510,18 +722,56 @@ export function Canvas({ platform, template, onFormatChange, panelsCollapsed, on
               {/* Format Buttons - Centered */}
               <div className="flex justify-center items-center">
                 <div className="flex flex-wrap justify-center gap-1 max-w-xl">
+                  {(() => {
+                    console.log('🎨 Rendering format buttons:', specs.formats);
+                    console.log('🎨 Current format state:', currentFormat);
+                    console.log('🎨 Platform:', platform);
+                    return null;
+                  })()}
                   {specs.formats.map((format) => (
                     <button
                       key={format.name}
-                      onClick={() => handleFormatChange(format)}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 whitespace-nowrap ${
-                        currentFormat.name === format.name
-                          ? 'text-white shadow-md'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      onMouseDown={() => console.log(`👆 Button mouse down: ${format.name}`)}
+                      onMouseUp={() => console.log(`👆 Button mouse up: ${format.name}`)}
+                                              onClick={(e) => {
+                          console.log('=== BUTTON CLICKED ===');
+                          console.log(`🖱️ Format button clicked: ${format.name} (${format.width}x${format.height})`);
+                          console.log(`📏 Current format BEFORE: ${currentFormat.name} (${currentFormat.width}x${currentFormat.height})`);
+                          
+                          e.preventDefault();
+                          e.stopPropagation();
+                          
+                          console.log('🚀 About to call handleFormatChange...');
+                          try {
+                            handleFormatChange(format);
+                            console.log(`✅ handleFormatChange call completed`);
+                            
+                            // Check state immediately after call
+                            setTimeout(() => {
+                              console.log(`📏 Current format AFTER (immediate): ${currentFormat.name} (${currentFormat.width}x${currentFormat.height})`);
+                            }, 0);
+                            
+                            // Check state after a short delay
+                            setTimeout(() => {
+                              console.log(`📏 Current format AFTER (100ms): ${currentFormat.name} (${currentFormat.width}x${currentFormat.height})`);
+                            }, 100);
+                            
+                          } catch (error) {
+                            console.error(`❌ Error in handleFormatChange:`, error);
+                          }
+                        }}
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-150 whitespace-nowrap hover:scale-105 ${
+                        currentFormat.name === format.name && currentFormat.width === format.width && currentFormat.height === format.height
+                          ? 'text-white shadow-lg transform scale-110 ring-2 ring-red-300 ring-opacity-50'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:shadow-md'
                       }`}
-                      style={currentFormat.name === format.name ? { backgroundColor: '#ff4940' } : {}}
+                      style={currentFormat.name === format.name && currentFormat.width === format.width && currentFormat.height === format.height ? { backgroundColor: '#ff4940' } : {}}
                     >
                       {format.name}
+                      {currentFormat.name === format.name && currentFormat.width === format.width && currentFormat.height === format.height ? 
+                        <span className="ml-1 text-xs bg-white bg-opacity-20 px-1 rounded">ACTIVE</span> : 
+                        null
+                      }
                       <span className="ml-1 text-xs opacity-75 hidden lg:inline">
                         {format.width}×{format.height}
                       </span>

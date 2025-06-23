@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Undo, Redo, Menu, X, Palette, Settings, Folder, Layout, Info, Share, ChevronDown } from 'lucide-react';
+import { Download, Undo, Redo, Menu, X, Palette, Settings, Folder, Layout, Info, Share, ChevronDown, Archive } from 'lucide-react';
 import { useCanvas } from '../contexts/CanvasContext';
 import { useBrand } from '../contexts/BrandContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useBackground } from '../contexts/BackgroundContext';
 import { useGuest } from '../contexts/GuestContext';
 import { SettingsModal } from './SettingsModal';
+import { SavedDesignsModal } from './SavedDesignsModal';
 import html2canvas from 'html2canvas';
 
 interface HeaderProps {
@@ -17,7 +18,7 @@ interface HeaderProps {
 }
 
 const platforms = [
-      { id: 'instagram', name: 'Instagram', color: 'bg-gradient-to-r from-red-500 to-pink-500' },
+  { id: 'instagram', name: 'Instagram', color: 'bg-gradient-to-r from-purple-500 to-pink-500' },
   { id: 'linkedin', name: 'LinkedIn', color: 'bg-blue-600' },
   { id: 'twitter', name: 'Twitter/X', color: 'bg-black' },
   { id: 'tiktok', name: 'TikTok', color: 'bg-gradient-to-r from-cyan-500 to-black-500 to-pink-500' },
@@ -40,6 +41,7 @@ export function Header({
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
+  const [savedDesignsModalOpen, setSavedDesignsModalOpen] = useState(false);
 
   // Auto-save functionality
   useEffect(() => {
@@ -446,6 +448,16 @@ export function Header({
                 </button>
                 <button
                   onClick={() => {
+                    setSavedDesignsModalOpen(true);
+                    setLogoMenuOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white flex items-center space-x-2"
+                >
+                  <Archive className="w-3.5 h-3.5" />
+                  <span>Saved Designs</span>
+                </button>
+                <button
+                  onClick={() => {
                     setSettingsModalOpen(true);
                     setLogoMenuOpen(false);
                   }}
@@ -802,6 +814,17 @@ export function Header({
 
       {/* About Modal */}
       {aboutModalOpen && <AboutModal />}
+
+      {/* Saved Designs Modal */}
+      <SavedDesignsModal 
+        isOpen={savedDesignsModalOpen}
+        onClose={() => setSavedDesignsModalOpen(false)}
+        onLoadDesign={(platform: string, format: string) => {
+          // Switch to the requested platform and format
+          onPlatformChange(platform);
+          // The canvas will automatically load the elements when platform/format changes
+        }}
+      />
     </div>
   );
 }

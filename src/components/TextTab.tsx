@@ -239,6 +239,7 @@ export function TextTab({ onAddElement }: TextTabProps) {
   const [fontSize, setFontSize] = useState(18);
   const [textAlign, setTextAlign] = useState('left');
   const [isEditingText, setIsEditingText] = useState(false);
+  const [isAddingText, setIsAddingText] = useState(false);
   
   const { selectedElement, removeElement, updateElement, elements } = useCanvas();
   const { trackTextAdded, trackFeatureUsed } = useMarketingTracking();
@@ -256,6 +257,13 @@ export function TextTab({ onAddElement }: TextTabProps) {
   };
 
   const handleQuickAdd = (textType: any) => {
+    if (isAddingText) {
+      console.log('🔧 Text quick add: Ignored due to debouncing');
+      return;
+    }
+    
+    setIsAddingText(true);
+    
     const element = {
       id: Date.now().toString(),
       type: 'text',
@@ -287,9 +295,19 @@ export function TextTab({ onAddElement }: TextTabProps) {
       textStyle: selectedStyle,
       textType: textType.name
     });
+    
+    // Reset debounce after 500ms
+    setTimeout(() => setIsAddingText(false), 500);
   };
 
   const handleCustomTextAdd = () => {
+    if (isAddingText) {
+      console.log('🔧 Custom text add: Ignored due to debouncing');
+      return;
+    }
+    
+    setIsAddingText(true);
+    
     const element = {
       id: Date.now().toString(),
       type: 'text',
@@ -321,6 +339,9 @@ export function TextTab({ onAddElement }: TextTabProps) {
       textStyle: selectedStyle,
       textType: 'Custom'
     });
+    
+    // Reset debounce after 500ms
+    setTimeout(() => setIsAddingText(false), 500);
   };
 
   const handleFontSizeChange = (newSize: number) => {
@@ -376,7 +397,10 @@ export function TextTab({ onAddElement }: TextTabProps) {
               <button
                 key={textType.name}
                 onClick={() => handleQuickAdd(textType)}
-                className="flex items-center space-x-2 p-2 rounded text-left transition-colors hover:bg-gray-700 group"
+                disabled={isAddingText}
+                className={`flex items-center space-x-2 p-2 rounded text-left transition-colors hover:bg-gray-700 group ${
+                  isAddingText ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
                 style={{ backgroundColor: '#003a63' }}
               >
                 <Icon className="w-3.5 h-3.5 text-gray-400 group-hover:text-white" />
@@ -409,7 +433,10 @@ export function TextTab({ onAddElement }: TextTabProps) {
           />
           <button
             onClick={handleCustomTextAdd}
-            className="w-full px-2 py-1 rounded text-xs font-medium text-white transition-colors hover:opacity-80"
+            disabled={isAddingText}
+            className={`w-full px-2 py-1 rounded text-xs font-medium text-white transition-colors hover:opacity-80 ${
+              isAddingText ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
             style={{ backgroundColor: '#ff4940' }}
           >
             Add Text
